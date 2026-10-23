@@ -1,0 +1,29 @@
+{
+  "system": {
+    "nodeId": "AEGIS-DEFAULT-NODE",
+    "environment": "default",
+    "logLevel": "INFO",
+    "heartbeatIntervalMs": 200,
+    "watchdogTimeoutMs": 500
+  },
+  "network": {
+    "mqttBrokerHost": "127.0.0.1",
+    "mqttBrokerPort": 1883,
+    "mqttTlsEnabled": false,
+    "reconnectBaseMs": 500,
+    "reconnectMaxMs": 5000,
+    "v2vUdpPort": 8999,
+    "v2iUdpPort": 8998
+  },
+  "traffic": {
+    "yellowClearanceMinMs": 3000,
+    "allRedClearanceMinMs": 1000,
+    "maxPreemptionHoldMs": 25000,
+    "defaultCycleTimeSec": 60
+  },
+  "ambulance": {
+    "gpsSampleRateHz": 10,
+    "vitalsSampleRateHz": 1,
+    "deadReckoningTimeoutSec": 30
+  }
+}

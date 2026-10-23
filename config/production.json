@@ -1,0 +1,32 @@
+{
+  "system": {
+    "nodeId": "AEGIS-PROD-CLUSTER",
+    "environment": "production",
+    "logLevel": "WARN",
+    "heartbeatIntervalMs": 200,
+    "watchdogTimeoutMs": 500
+  },
+  "network": {
+    "mqttBrokerHost": "192.168.10.100",
+    "mqttBrokerPort": 8883,
+    "mqttTlsEnabled": true,
+    "tlsCaCert": "/etc/aegis/certs/ca.crt",
+    "tlsClientCert": "/etc/aegis/certs/client.crt",
+    "tlsClientKey": "/etc/aegis/certs/client.key",
+    "reconnectBaseMs": 500,
+    "reconnectMaxMs": 5000,
+    "v2vUdpPort": 8999,
+    "v2iUdpPort": 8998
+  },
+  "traffic": {
+    "yellowClearanceMinMs": 3000,
+    "allRedClearanceMinMs": 1000,
+    "maxPreemptionHoldMs": 20000,
+    "defaultCycleTimeSec": 60
+  },
+  "ambulance": {
+    "gpsSampleRateHz": 10,
+    "vitalsSampleRateHz": 1,
+    "deadReckoningTimeoutSec": 30
+  }
+}

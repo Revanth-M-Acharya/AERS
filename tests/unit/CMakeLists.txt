@@ -1,0 +1,3 @@
+add_executable(test_common_geo test_common_geo.cpp)
+target_link_libraries(test_common_geo PRIVATE aegis_common)
+add_test(NAME test_common_geo COMMAND test_common_geo)

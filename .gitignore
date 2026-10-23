@@ -1,0 +1,39 @@
+# Build directories and outputs
+build/
+bin/
+lib/
+out/
+*.o
+*.obj
+*.so
+*.dylib
+*.a
+*.out
+*.app
+
+# IDE and Editor configurations
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs and runtime dumps
+*.log
+*.coredump
+logs/
+run/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+venv/
+.env
+
+# Node / Web artifacts
+node_modules/
+dist/
+.next/

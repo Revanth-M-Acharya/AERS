@@ -1,0 +1,3 @@
+add_executable(test_ipc_pipeline test_ipc_pipeline.cpp)
+target_link_libraries(test_ipc_pipeline PRIVATE aegis_common aegis_logger)
+add_test(NAME test_ipc_pipeline COMMAND test_ipc_pipeline)

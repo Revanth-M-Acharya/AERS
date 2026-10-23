@@ -1,0 +1,3 @@
+add_executable(test_gpio_timing test_gpio_timing.cpp)
+target_link_libraries(test_gpio_timing PRIVATE aegis_common)
+add_test(NAME test_gpio_timing COMMAND test_gpio_timing)

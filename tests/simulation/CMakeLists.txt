@@ -1,0 +1,3 @@
+add_executable(test_sim_mission test_sim_mission.cpp)
+target_link_libraries(test_sim_mission PRIVATE aegis_common)
+add_test(NAME test_sim_mission COMMAND test_sim_mission)
