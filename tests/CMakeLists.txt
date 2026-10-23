@@ -21,3 +21,12 @@ target_link_libraries(test_common_foundation PRIVATE
     aegis_common
 )
 add_test(NAME test_common_foundation COMMAND test_common_foundation)
+
+add_executable(test_communication_infrastructure unit/test_communication_infrastructure.cpp)
+target_link_libraries(test_communication_infrastructure PRIVATE
+    aegis_network
+    aegis_common
+    aegis_logger
+    aegis_config
+)
+add_test(NAME test_communication_infrastructure COMMAND test_communication_infrastructure)

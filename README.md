@@ -142,23 +142,41 @@ The common foundation library provides core utilities utilized across all 19 sys
 
 ---
 
-## 6. How to Run Tests
+## 6. Communication Infrastructure (Phase 2)
 
-### Automated Smoke & Unit Tests
+The communication infrastructure library (`aegis_network`) provides production-grade, thread-safe network services connecting all SMART AEGIS nodes:
+
+1. **NetworkManager:** Subsystem facade orchestrating MQTT telemetry, direct V2X sockets, RBAC authentication, and heartbeat tracking.
+2. **MqttClient:** Thread-safe MQTT client supporting QoS 0/1/2, automatic reconnection, Last Will and Testament (LWT), loopback test dispatch, and offline ring buffering.
+3. **MessageRouter:** MQTT topic router supporting exact path routing, single-level (`+`), and multi-level (`#`) wildcards.
+4. **AuthenticationManager:** API bearer token verification, RBAC role authorization, HMAC payload signatures, and mTLS verification hooks.
+5. **RetryPolicy:** Exponential backoff with configurable jitter, multipliers, and maximum attempt limits.
+6. **HeartbeatManager:** Periodic node heartbeat generation and peer liveness monitoring with staleness detection.
+7. **Serializer:** High-throughput JSON serialization and deserialization for all 10 ICD schemas defined in `INTERFACE_SPECIFICATION.md`.
+8. **SocketClient & SocketServer:** POSIX UDP datagram sockets for direct vehicle-to-vehicle (V2V) and vehicle-to-infrastructure (V2I) ad-hoc messaging with deterministic loopback fallback for sandboxed execution.
+9. **ConnectionManager:** State machine monitoring network link lifecycle and keep-alive ping latency.
+
+---
+
+## 7. How to Run Tests
+
+### Automated Verification Test Suites
 ```bash
-# Run unit tests via the build script
+# Run all unit tests via the build script
 ./scripts/build.sh test
 
 # Or run directly via Make
 make test
 
-# Or run directly from build output
+# Or run individual test suites from build output
 ./build/bin/test_build_smoke
+./build/bin/test_common_foundation
+./build/bin/test_communication_infrastructure
 ```
 
 ---
 
-## 6. How to Add Future Modules
+## 8. How to Add Future Modules
 
 To add a new software module to SMART AEGIS, follow this standardized five-step engineering procedure:
 

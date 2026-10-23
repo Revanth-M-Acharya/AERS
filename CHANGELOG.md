@@ -5,6 +5,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+- Complete Phase 2: Communication Infrastructure (`aegis_network`) with 10 production-quality C++17 components:
+  1. `NetworkManager`: Unified network subsystem facade coordinating MQTT, Sockets, Auth, and Heartbeat.
+  2. `MqttClient`: Thread-safe client supporting QoS 0/1/2, Last Will and Testament (LWT), automatic reconnection, loopback simulation, and offline ring buffering.
+  3. `MessageRouter`: Thread-safe topic subscription router supporting exact match, single-level wildcard (`+`), and multi-level wildcard (`#`).
+  4. `AuthenticationManager`: Token-based bearer authentication, Role-Based Access Control (RBAC), HMAC-SHA256 equivalent payload signatures, and future-ready mTLS interface.
+  5. `RetryPolicy`: Configurable exponential backoff retry policy with jitter bounds and attempt threshold limits.
+  6. `HeartbeatManager`: Node heartbeat generation, incremental sequencing, peer timestamp tracking, and dead peer staleness detection.
+  7. `Serializer`: Strict JSON serializer and deserializer for all 10 ICD schemas (`EmergencyRequest`, `GPSUpdate`, `VitalsUpdate`, `TrafficPreemptionRequest`, `TrafficStatus`, `HospitalAlert`, `HospitalCommand`, `PriorityDecision`, `Heartbeat`, `FaultEvent`).
+  8. `SocketClient`: Lightweight POSIX UDP socket client for direct V2V / V2I ad-hoc beacons with sandboxed datagram fallback.
+  9. `SocketServer`: Non-blocking POSIX UDP receiver for local beacon listening with non-blocking poll capability.
+  10. `ConnectionManager`: State machine tracking link connectivity states (`DISCONNECTED`, `CONNECTING`, `CONNECTED`, `RECONNECTING`, `FAILED`) and keep-alive ping round-trips.
+- Comprehensive automated unit test suite (`tests/unit/test_communication_infrastructure.cpp`) covering all 9 test suites with 100% pass rate.
 - Complete Common Foundation Library (`aegis_common`) with 15 reusable components:
   1. Geo utilities (Haversine distance, bearing, ETA, coordinate validation).
   2. Time utilities (monotonic microseconds, UTC milliseconds, ISO 8601 formatting, Stopwatch).

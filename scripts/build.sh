@@ -4,6 +4,9 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(dirname "$SCRIPT_DIR")"
 BUILD_TYPE="${1:-Debug}"
+if [ "${BUILD_TYPE}" = "test" ]; then
+    BUILD_TYPE="Debug"
+fi
 
 cd "${ROOT_DIR}"
 
