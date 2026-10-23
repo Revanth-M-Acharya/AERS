@@ -1,4 +1,4 @@
-#include "logger.hpp"
+#include "aegis/logger/logger.hpp"
 #include <iostream>
 
 namespace aegis {
@@ -9,12 +9,15 @@ Logger& Logger::Instance() {
     return s_instance;
 }
 
+Logger::Logger() = default;
+Logger::~Logger() = default;
+
 void Logger::Initialize(std::string_view /*logPath*/, LogLevel /*minLevel*/) {
-    // Placeholder: Initialize QNX slogger2 or ring-buffer file stream
+    // TODO: Initialize QNX slogger2 channel or local file ring buffer
 }
 
 void Logger::Log(LogLevel /*level*/, std::string_view moduleTag, std::string_view message) {
-    // Placeholder: Thread-safe, non-blocking asynchronous output
+    // TODO: Non-blocking asynchronous buffer write
     std::cout << "[" << moduleTag << "] " << message << std::endl;
 }
 

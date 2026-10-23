@@ -1,11 +1,15 @@
-#include "vitals_monitor.hpp"
+#include "aegis/edge/vitals_monitor.hpp"
 
 namespace aegis {
+namespace edge {
 namespace ambulance {
+
+VitalsMonitor::VitalsMonitor() = default;
+VitalsMonitor::~VitalsMonitor() = default;
 
 PatientVitals VitalsMonitor::SampleVitals() {
     PatientVitals v;
-    // Placeholder: Ingest from biomedical sensor interface
+    // TODO: Ingest physiological data from biomedical serial monitor or mock stream
     return v;
 }
 
@@ -16,4 +20,5 @@ bool VitalsMonitor::DetectAcuteDeterioration(const PatientVitals& v) const {
 }
 
 } // namespace ambulance
+} // namespace edge
 } // namespace aegis

@@ -8,4 +8,5 @@ target_link_libraries(aegis_traffic_controller PUBLIC
     aegis_network
     aegis_safety
     aegis_logger
+    aegis_config
 )

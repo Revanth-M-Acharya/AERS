@@ -1,15 +1,19 @@
-#include "watchdog.hpp"
+#include "aegis/safety/watchdog.hpp"
 
 namespace aegis {
 namespace safety {
 
-bool Watchdog::Initialize(uint32_t /*timeoutMs*/) {
-    // Placeholder: Open /dev/watchdog on Linux or attach HAM pulse on QNX
+Watchdog::Watchdog() = default;
+Watchdog::~Watchdog() = default;
+
+bool Watchdog::Initialize(uint32_t timeoutMs) {
+    m_timeoutMs = timeoutMs;
+    // TODO: Open /dev/watchdog or connect to QNX High Availability Manager (HAM)
     return true;
 }
 
 void Watchdog::Kick() {
-    // Placeholder: Write keep-alive strobe to watchdog driver
+    // TODO: Emit keep-alive heartbeat pulse or write to watchdog file descriptor
 }
 
 } // namespace safety

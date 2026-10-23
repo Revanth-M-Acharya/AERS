@@ -10,4 +10,5 @@ target_link_libraries(aegis_coordinator PUBLIC
     aegis_priority_scheduler
     aegis_network
     aegis_logger
+    aegis_config
 )

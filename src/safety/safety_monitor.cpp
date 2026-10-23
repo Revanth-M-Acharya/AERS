@@ -1,4 +1,4 @@
-#include "safety_monitor.hpp"
+#include "aegis/safety/safety_monitor.hpp"
 
 namespace aegis {
 namespace safety {
@@ -6,12 +6,16 @@ namespace safety {
 SafetyMonitor::SafetyMonitor() = default;
 SafetyMonitor::~SafetyMonitor() = default;
 
+bool SafetyMonitor::Initialize(uint32_t /*heartbeatIntervalMs*/, uint32_t watchdogTimeoutMs) {
+    return m_watchdog.Initialize(watchdogTimeoutMs);
+}
+
 void SafetyMonitor::RegisterHeartbeat(std::string_view /*moduleName*/) {
-    // Placeholder: Register module pulse check
+    // TODO: Record heartbeat timestamp for registered module
 }
 
 void SafetyMonitor::Pulse() {
-    // Placeholder: Verify all module heartbeats within deadline, then kick hardware WDT
+    // TODO: Verify all registered modules are within heartbeat deadlines before kicking WDT
     m_watchdog.Kick();
 }
 

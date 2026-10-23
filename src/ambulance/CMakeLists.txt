@@ -10,4 +10,5 @@ target_link_libraries(aegis_ambulance PUBLIC
     aegis_network
     aegis_logger
     aegis_safety
+    aegis_config
 )

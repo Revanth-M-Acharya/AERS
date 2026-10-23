@@ -1,18 +1,23 @@
-#include "dynamic_green_corridor.hpp"
+#include "aegis/core/dynamic_green_corridor.hpp"
 #include <iostream>
 
 namespace aegis {
+namespace core {
 namespace coordinator {
 
+DynamicGreenCorridor::DynamicGreenCorridor() = default;
+DynamicGreenCorridor::~DynamicGreenCorridor() = default;
+
 void DynamicGreenCorridor::TriggerPreemption(const std::string& intersectionId, const std::string& unitId) {
-    // Placeholder: Formulate preemption message and publish to aegis/traffic/<id>/preempt
-    std::cout << "[Corridor] Preemption triggered for " << intersectionId << " by " << unitId << std::endl;
+    // TODO: Publish TrafficPreemptionRequest via MQTT QoS 2
+    std::cout << "[DynamicGreenCorridor] Preemption triggered for " << intersectionId << " by " << unitId << std::endl;
 }
 
 void DynamicGreenCorridor::ReleaseCorridor(const std::string& intersectionId) {
-    // Placeholder: Send release clearance command
-    std::cout << "[Corridor] Corridor released for " << intersectionId << std::endl;
+    // TODO: Publish CorridorRelease verification command
+    std::cout << "[DynamicGreenCorridor] Corridor released for " << intersectionId << std::endl;
 }
 
 } // namespace coordinator
+} // namespace core
 } // namespace aegis
