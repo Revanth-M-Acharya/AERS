@@ -15,3 +15,9 @@ target_link_libraries(test_build_smoke PRIVATE
     aegis_traffic_dashboard
 )
 add_test(NAME test_build_smoke COMMAND test_build_smoke)
+
+add_executable(test_common_foundation unit/test_common_foundation.cpp)
+target_link_libraries(test_common_foundation PRIVATE
+    aegis_common
+)
+add_test(NAME test_common_foundation COMMAND test_common_foundation)

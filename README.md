@@ -117,11 +117,32 @@ Compiled binaries are output to `build/bin/`:
 * `build/bin/aegis_coordinator`: Central dispatch and green corridor coordinator.
 * `build/bin/aegis_ambulance`: In-vehicle On-Board Unit (OBU) telematics daemon.
 * `build/bin/aegis_traffic_controller`: Roadside Unit (RSU) traffic signal controller.
-* `build/bin/test_build_smoke`: Verification test harness.
+* `build/bin/test_build_smoke`: Module instantiation smoke test harness.
+* `build/bin/test_common_foundation`: Comprehensive 15-component foundation verification harness.
 
 ---
 
-## 5. How to Run Tests
+## 5. Common Foundation Library (`aegis_common`)
+The common foundation library provides core utilities utilized across all 19 system modules:
+1. **Geo Utilities:** WGS84 Haversine distance, initial forward bearing, ETA calculations, and boundary validation.
+2. **Time Utilities:** Monotonic microsecond clock, UTC conversions, ISO 8601 formatting, and precision `Stopwatch`.
+3. **UUID Utilities:** RFC 4122 compliant UUIDv4 generator, event/incident ID generators, and unit formatters.
+4. **Thread-Safe Queue:** Mutex and condition-variable protected generic queue supporting blocking and timed-wait operations.
+5. **Circular Ring Buffer:** Pre-allocated, zero-heap template buffer (`CircularBuffer<T, N>`) with overwrite semantics.
+6. **Result<T, E>:** Non-throwing monadic success/error container for deterministic error handling.
+7. **Error Model:** Standardized `AegisError` structure with origin module tagging and severity levels.
+8. **Event Model:** Extensible `Event` base class with monotonic timestamps and serialization hooks.
+9. **State Machine:** Generic thread-safe `StateMachine<StateEnum>` with transition guard validations.
+10. **Timer Utilities:** Non-blocking `SoftwareTimer` tracking expiration and remaining durations.
+11. **JSON Helper:** Lightweight JSON field formatter, escaper, and key extractor.
+12. **Common Constants:** Temporal deadlines, clearance intervals, and network port definitions.
+13. **Strongly Typed Enums:** Type-safe enums for triage categories, signal phases, and vehicle states.
+14. **Serialization Interface:** `ISerializable` contract for JSON and binary serialization.
+15. **Validation Utilities:** Range verifiers, bounded string checks, and standard CRC-32 checksum computation.
+
+---
+
+## 6. How to Run Tests
 
 ### Automated Smoke & Unit Tests
 ```bash

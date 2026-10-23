@@ -1,7 +1,5 @@
 # ==============================================================================
 # SMART AEGIS: Universal Build Automation Makefile
-# Provides seamless compilation on Linux/macOS using standard C++17 compilers
-# (clang++ / g++) alongside CMake.
 # ==============================================================================
 
 CXX ?= clang++
@@ -21,7 +19,10 @@ LIB_DIR = $(BUILD_DIR)/lib
 OBJ_DIR = $(BUILD_DIR)/obj
 
 # Library Sources
-COMMON_SRCS = src/common/geo_utils.cpp
+COMMON_SRCS = src/common/geo_utils.cpp src/common/time_utils.cpp src/common/uuid_utils.cpp \
+              src/common/error.cpp src/common/event.cpp src/common/timer.cpp \
+              src/common/json_helper.cpp src/common/validator.cpp
+
 CONFIG_SRCS = src/config/config_manager.cpp
 LOGGER_SRCS = src/logger/logger.cpp
 SAFETY_SRCS = src/safety/watchdog.cpp src/safety/safety_monitor.cpp
@@ -42,13 +43,14 @@ ALL_OBJS = $(patsubst src/%.cpp,$(OBJ_DIR)/%.o,$(ALL_SRCS))
 
 STATIC_LIB = $(LIB_DIR)/libaegis.a
 
-# App Executables
+# App Executables & Tests
 APPS = $(BIN_DIR)/aegis_coordinator $(BIN_DIR)/aegis_ambulance $(BIN_DIR)/aegis_traffic_controller
-TEST_BIN = $(BIN_DIR)/test_build_smoke
+SMOKE_TEST_BIN = $(BIN_DIR)/test_build_smoke
+FOUNDATION_TEST_BIN = $(BIN_DIR)/test_common_foundation
 
 .PHONY: all clean test directories info
 
-all: directories $(STATIC_LIB) $(APPS) $(TEST_BIN)
+all: directories $(STATIC_LIB) $(APPS) $(SMOKE_TEST_BIN) $(FOUNDATION_TEST_BIN)
 	@echo "=========================================================="
 	@echo " SMART AEGIS Build Complete [$(BUILD_TYPE)]"
 	@echo " Binaries located in: $(BIN_DIR)"
@@ -82,15 +84,20 @@ $(BIN_DIR)/aegis_traffic_controller: src/apps/traffic_main.cpp $(STATIC_LIB)
 	@echo "[LINK] $@"
 	@$(CXX) $(CXXFLAGS) $(INCLUDES) $< -L$(LIB_DIR) -laegis -o $@
 
-$(TEST_BIN): tests/unit/test_build_smoke.cpp $(STATIC_LIB)
+$(SMOKE_TEST_BIN): tests/unit/test_build_smoke.cpp $(STATIC_LIB)
 	@echo "[LINK] $@"
 	@$(CXX) $(CXXFLAGS) $(INCLUDES) $< -L$(LIB_DIR) -laegis -o $@
 
-test: $(TEST_BIN)
+$(FOUNDATION_TEST_BIN): tests/unit/test_common_foundation.cpp $(STATIC_LIB)
+	@echo "[LINK] $@"
+	@$(CXX) $(CXXFLAGS) $(INCLUDES) $< -L$(LIB_DIR) -laegis -o $@
+
+test: $(SMOKE_TEST_BIN) $(FOUNDATION_TEST_BIN)
 	@echo "=========================================================="
-	@echo " Running SMART AEGIS Smoke & Build Verification Test"
+	@echo " Running SMART AEGIS Test Suites"
 	@echo "=========================================================="
-	@$(TEST_BIN)
+	@$(SMOKE_TEST_BIN)
+	@$(FOUNDATION_TEST_BIN)
 
 clean:
 	@rm -rf $(BUILD_DIR)
