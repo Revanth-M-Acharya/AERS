@@ -1,28 +1,11 @@
+/**
+ * @file dynamic_green_corridor.hpp
+ * @brief Dynamic green corridor alias header for architectural specification compliance.
+ */
+
 #ifndef AEGIS_CORE_DYNAMIC_GREEN_CORRIDOR_HPP
 #define AEGIS_CORE_DYNAMIC_GREEN_CORRIDOR_HPP
 
-#include <string>
-#include "aegis/common/types.hpp"
-
-namespace aegis {
-namespace core {
-namespace coordinator {
-
-/**
- * @brief Computes preemption envelopes and issues dynamic green corridor signals.
- * TODO: Implement arrival estimation and sequential intersection preemption dispatch.
- */
-class DynamicGreenCorridor {
-public:
-    DynamicGreenCorridor();
-    ~DynamicGreenCorridor();
-
-    void TriggerPreemption(const std::string& intersectionId, const std::string& unitId);
-    void ReleaseCorridor(const std::string& intersectionId);
-};
-
-} // namespace coordinator
-} // namespace core
-} // namespace aegis
+#include "aegis/core/green_corridor_engine.hpp"
 
 #endif // AEGIS_CORE_DYNAMIC_GREEN_CORRIDOR_HPP

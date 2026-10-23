@@ -5,6 +5,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+- Complete Phase 3: Coordinator Core (`aegis_coordinator` and `aegis_route_planner`) in modern C++17:
+  1. `CentralCoordinator` (`Coordinator`): Master dispatch orchestrator uniting call intake, fleet tracking, route planning, dynamic green corridor preemption, and MQTT telemetry broadcast.
+  2. `EmergencyCallHandler`: 911 distress call qualification, metropolitan geofencing validation, symptom-based triage categorization (`CODE_RED`, `CODE_AMBER`, `CODE_GREEN`), and required capability inference.
+  3. `IncidentManager`: Thread-safe incident lifecycle tracker supporting state transitions (`REPORTED` -> `ASSIGNED` -> `EN_ROUTE_SCENE` -> `ON_SCENE` -> `EN_ROUTE_HOSPITAL` -> `RESOLVED`), queries, and ambulance assignment.
+  4. `AmbulanceRegistry`: Thread-safe fleet registry maintaining vehicle profiles (ALS vs BLS), location, kinematics, and atomic reservation check-and-set locking.
+  5. `FleetManager`: Fleet supervisor API wrapping the ambulance registry and populating initial simulated metropolitan fleet deployments.
+  6. `DispatchEngine`: Automated dispatch selection algorithm matching required clinical capabilities, vehicle readiness, and proximity distances with ALS preference for critical incidents.
+  7. `RoutePlanner`: Graph-based municipal navigation engine executing A* shortest-time pathfinding with Dijkstra fallback over a 20-node simulated metropolitan street network, computing waypoint coordinates, ordered intersection sequences, and travel ETAs.
+  8. `GreenCorridorEngine` (`DynamicGreenCorridor`): Spatial corridor preemption scheduler evaluating vehicle progress along route vectors, activating signal preemption windows, generating signed `TrafficPreemptionRequestMsg` payloads, and releasing intersections upon passage.
+- Comprehensive automated unit test suite (`tests/unit/test_coordinator_core.cpp`) covering all 7 test suites with 100% pass rate.
 - Complete Phase 2: Communication Infrastructure (`aegis_network`) with 10 production-quality C++17 components:
   1. `NetworkManager`: Unified network subsystem facade coordinating MQTT, Sockets, Auth, and Heartbeat.
   2. `MqttClient`: Thread-safe client supporting QoS 0/1/2, Last Will and Testament (LWT), automatic reconnection, loopback simulation, and offline ring buffering.

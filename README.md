@@ -158,7 +158,22 @@ The communication infrastructure library (`aegis_network`) provides production-g
 
 ---
 
-## 7. How to Run Tests
+## 7. Coordinator Core (Phase 3)
+
+The Coordinator subsystem (`aegis_coordinator` and `aegis_route_planner`) provides central intelligence and real-time incident dispatch management:
+
+1. **CentralCoordinator:** Master dispatch supervisor unifying call intake, fleet tracking, route planning, dynamic green corridor preemption, and MQTT event broadcast.
+2. **EmergencyCallHandler:** 911 distress call qualification, metropolitan geofencing validation, symptom-based triage categorization (`CODE_RED`, `CODE_AMBER`, `CODE_GREEN`), and required capability inference.
+3. **IncidentManager:** Thread-safe incident lifecycle storage supporting state transitions (`REPORTED` -> `ASSIGNED` -> `EN_ROUTE_SCENE` -> `ON_SCENE` -> `EN_ROUTE_HOSPITAL` -> `RESOLVED`), queries, and ambulance assignment.
+4. **AmbulanceRegistry:** Thread-safe fleet registry maintaining vehicle profiles (ALS vs BLS), location, kinematics, and atomic reservation check-and-set locking.
+5. **FleetManager:** Fleet supervisor API wrapping the ambulance registry and populating initial simulated metropolitan fleet deployments.
+6. **DispatchEngine:** Automated dispatch selection algorithm matching required clinical capabilities, vehicle readiness, and proximity distances with ALS preference for critical incidents.
+7. **RoutePlanner:** Graph-based municipal navigation engine executing A* shortest-time pathfinding with Dijkstra fallback over a 20-node simulated metropolitan street network, computing waypoint coordinates, ordered intersection sequences, and travel ETAs.
+8. **GreenCorridorEngine (DynamicGreenCorridor):** Spatial corridor preemption scheduler evaluating vehicle progress along route vectors, activating signal preemption windows, generating signed `TrafficPreemptionRequestMsg` payloads, and releasing intersections upon passage.
+
+---
+
+## 8. How to Run Tests
 
 ### Automated Verification Test Suites
 ```bash
@@ -172,11 +187,12 @@ make test
 ./build/bin/test_build_smoke
 ./build/bin/test_common_foundation
 ./build/bin/test_communication_infrastructure
+./build/bin/test_coordinator_core
 ```
 
 ---
 
-## 8. How to Add Future Modules
+## 9. How to Add Future Modules
 
 To add a new software module to SMART AEGIS, follow this standardized five-step engineering procedure:
 

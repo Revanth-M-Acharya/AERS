@@ -30,3 +30,15 @@ target_link_libraries(test_communication_infrastructure PRIVATE
     aegis_config
 )
 add_test(NAME test_communication_infrastructure COMMAND test_communication_infrastructure)
+
+add_executable(test_coordinator_core unit/test_coordinator_core.cpp)
+target_link_libraries(test_coordinator_core PRIVATE
+    aegis_coordinator
+    aegis_route_planner
+    aegis_priority_scheduler
+    aegis_network
+    aegis_common
+    aegis_logger
+    aegis_config
+)
+add_test(NAME test_coordinator_core COMMAND test_coordinator_core)
