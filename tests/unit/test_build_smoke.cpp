@@ -11,6 +11,7 @@
 #include "aegis/core/coordinator.hpp"
 #include "aegis/edge/ambulance_node.hpp"
 #include "aegis/edge/traffic_controller.hpp"
+#include "aegis/edge/traffic_signal_node.hpp"
 #include "aegis/dashboard/hospital_dashboard_backend.hpp"
 #include "aegis/dashboard/traffic_dashboard_backend.hpp"
 
@@ -60,9 +61,16 @@ int main() {
     assert(ambulance.Start());
     ambulance.Stop();
 
-    // 10. Traffic Controller
+    // 10. Traffic Controller & Node
     aegis::edge::traffic::TrafficController traffic;
     assert(traffic.Initialize("INT-101", 3000));
+    assert(traffic.Start());
+    traffic.Stop();
+
+    aegis::edge::traffic::TrafficSignalNode signalNode;
+    assert(signalNode.Start());
+    signalNode.Tick(50);
+    signalNode.Stop();
 
     // 11. Hospital Dashboard
     aegis::dashboard::HospitalDashboardBackend hospitalDash;

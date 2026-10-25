@@ -185,7 +185,21 @@ The Ambulance On-Board Unit subsystem (`aegis_ambulance`) implements the vehicle
 
 ---
 
-## 9. How to Run Tests
+## 9. Traffic Signal Node Foundation (Phase 5A)
+
+The Traffic Signal Node subsystem (`aegis_traffic_controller`) provides a deterministic, hardware-independent roadside intersection controller and preemption foundation:
+
+1. **TrafficSignalNode:** Top-level edge daemon managing controller lifecycle (`Start()`, `Stop()`, `Run()`, `Tick()`) and deterministic stepping.
+2. **TrafficController:** Master coordinator governing the signal state machine, emergency preemption manager, recovery manager, and GPIO abstraction interface.
+3. **SignalStateMachine:** Strict deterministic Finite State Machine (FSM) enforcing valid normal cycles (`RED -> GREEN -> YELLOW -> RED`) and emergency cycles (`Current -> ALL_RED -> GREEN -> Hold Green -> Recovery -> YELLOW -> RED`), while categorically rejecting hazardous transitions (such as `GREEN -> RED`, `YELLOW -> GREEN`, or `RED -> YELLOW`).
+4. **PreemptionManager:** Dedicated state manager managing emergency preemption requests (`StartEmergency()`, `CancelEmergency()`, `IsEmergencyActive()`) without coupling to timing or GPIO.
+5. **RecoveryManager:** Dedicated recovery cycle manager tracking post-clearance stabilization (`StartRecovery()`, `RecoveryFinished()`, `Reset()`, `IsRecoveryActive()`).
+6. **IGpioInterface & SimulationGpioInterface:** Complete hardware abstraction interface decoupling signal logic from physical relays or SBC GPIOs. `SimulationGpioInterface` logs all simulated lamp actuations (`RED`, `YELLOW`, `GREEN`, `ALL_RED`, `FLASHING_YELLOW`, `FLASHING_RED`, `ALL_OFF`, `SHUTDOWN`) without any external dependencies.
+7. **TrafficTimingConfig:** Fully configurable timing parameters (`redDurationMs`, `greenDurationMs`, `yellowDurationMs`, `allRedClearanceMs`, `emergencyHoldDurationMs`, `recoveryDurationMs`) eliminating hardcoded magic numbers.
+
+---
+
+## 10. How to Run Tests
 
 ### Automated Verification Test Suites
 ```bash
@@ -201,11 +215,12 @@ make test
 ./build/bin/test_communication_infrastructure
 ./build/bin/test_coordinator_core
 ./build/bin/test_ambulance_node
+./build/bin/test_traffic_signal_node
 ```
 
 ---
 
-## 10. How to Add Future Modules
+## 11. How to Add Future Modules
 
 To add a new software module to SMART AEGIS, follow this standardized five-step engineering procedure:
 

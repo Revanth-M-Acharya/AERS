@@ -4,6 +4,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Added
+- Complete Phase 5A: Traffic Signal Node Foundation (`aegis_traffic_controller`) in modern C++17:
+  1. `IGpioInterface` & `SimulationGpioInterface`: Pure virtual hardware abstraction layer decoupling traffic controller logic from physical GPIO/relay hardware. `SimulationGpioInterface` logs all simulated lamp actuations (`SET_RED`, `SET_YELLOW`, `SET_GREEN`, `FLASH_YELLOW`, `FLASH_RED`, `ALL_OFF`, `SHUTDOWN`) without hardware dependencies.
+  2. `SignalStateMachine`: Deterministic Finite State Machine enforcing valid normal cycles (`RED -> GREEN -> YELLOW -> RED`) and emergency preemption sequences (`Current -> ALL_RED -> GREEN -> Hold Green -> Recovery -> YELLOW -> RED`), while strictly rejecting hazardous transitions (e.g., `GREEN -> RED`, `YELLOW -> GREEN`, `RED -> YELLOW`).
+  3. `PreemptionManager`: Thread-safe preemption status manager (`StartEmergency()`, `CancelEmergency()`, `IsEmergencyActive()`) logging activation and cancellation events without timing or hardware coupling.
+  4. `RecoveryManager`: Thread-safe recovery cycle tracker (`StartRecovery()`, `RecoveryFinished()`, `Reset()`, `IsRecoveryActive()`) logging transition progress.
+  5. `TrafficController`: Master roadside intersection controller coordinating the state machine, preemption manager, recovery manager, and GPIO abstraction with configurable phase timings (`TrafficTimingConfig`).
+  6. `TrafficSignalNode`: Top-level edge daemon managing controller lifecycle (`Start()`, `Stop()`, `Run()`, `Tick()`).
+- Comprehensive automated unit test suite (`tests/unit/test_traffic_signal_node.cpp`) covering state transitions, emergency activation, preemption cancellation, post-clearance recovery, invalid transition rejection, GPIO simulation logging, controller lifecycle, and node execution with 100% pass rate.
+
 ### Changed
 - Cleaned up include hierarchy and build configuration before Phase 4:
   - Removed 18 obsolete Phase 1 placeholder header files from `src/` to eliminate shadowing of public API in `include/aegis/`.

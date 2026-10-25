@@ -53,3 +53,13 @@ target_link_libraries(test_ambulance_node PRIVATE
     aegis_safety
 )
 add_test(NAME test_ambulance_node COMMAND test_ambulance_node)
+
+add_executable(test_traffic_signal_node unit/test_traffic_signal_node.cpp)
+target_link_libraries(test_traffic_signal_node PRIVATE
+    aegis_traffic_controller
+    aegis_common
+    aegis_logger
+    aegis_config
+    aegis_safety
+)
+add_test(NAME test_traffic_signal_node COMMAND test_traffic_signal_node)

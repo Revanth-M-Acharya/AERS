@@ -1,25 +1,67 @@
+/**
+ * @file gpio_interface.hpp
+ * @brief Hardware-independent GPIO abstraction interface and simulation implementation.
+ */
+
 #ifndef AEGIS_EDGE_GPIO_INTERFACE_HPP
 #define AEGIS_EDGE_GPIO_INTERFACE_HPP
 
-#include "aegis/common/types.hpp"
+#include <string>
+#include <memory>
+#include <mutex>
 
 namespace aegis {
 namespace edge {
 namespace traffic {
 
 /**
- * @brief Hardware GPIO / Relay driver abstraction.
- * TODO: Implement physical register writes or QNX /dev/traffic_controller resmgr.
+ * @brief Abstract interface for traffic signal lamp actuation.
+ * Decouples controller logic completely from physical SBC GPIO / relay hardware.
  */
-class GpioInterface {
+class IGpioInterface {
 public:
-    GpioInterface();
-    ~GpioInterface();
+    virtual ~IGpioInterface() = default;
 
-    bool Initialize();
-    void SetLampState(common::SignalPhase northSouth, common::SignalPhase eastWest);
-    bool VerifyHardwareInterlock() const;
+    virtual bool Initialize() = 0;
+    virtual void SetRed() = 0;
+    virtual void SetYellow() = 0;
+    virtual void SetGreen() = 0;
+    virtual void FlashYellow() = 0;
+    virtual void FlashRed() = 0;
+    virtual void AllOff() = 0;
+    virtual void Shutdown() = 0;
 };
+
+/**
+ * @brief Hardware-independent simulation GPIO driver logging all lamp state modifications.
+ */
+class SimulationGpioInterface : public IGpioInterface {
+public:
+    SimulationGpioInterface();
+    ~SimulationGpioInterface() override;
+
+    bool Initialize() override;
+    void SetRed() override;
+    void SetYellow() override;
+    void SetGreen() override;
+    void FlashYellow() override;
+    void FlashRed() override;
+    void AllOff() override;
+    void Shutdown() override;
+
+    std::string GetLastAction() const;
+    bool IsInitialized() const noexcept;
+
+private:
+    mutable std::mutex m_mutex;
+    std::string m_lastAction{"ALL_OFF"};
+    bool m_isInitialized{false};
+};
+
+/**
+ * @brief Factory function creating the simulation GPIO driver.
+ */
+std::unique_ptr<IGpioInterface> CreateSimulationGpio();
 
 } // namespace traffic
 } // namespace edge
