@@ -120,8 +120,12 @@ std::optional<bool> JsonHelper::ExtractBool(std::string_view json, std::string_v
     pos = json.find(':', pos + pattern.size());
     if (pos == std::string_view::npos) return std::nullopt;
 
-    if (json.find("true", pos) != std::string_view::npos) return true;
-    if (json.find("false", pos) != std::string_view::npos) return false;
+    size_t start = pos + 1;
+    while (start < json.size() && (json[start] == ' ' || json[start] == '\t')) ++start;
+    if (start >= json.size()) return std::nullopt;
+
+    if (json.substr(start, 4) == "true") return true;
+    if (json.substr(start, 5) == "false") return false;
     return std::nullopt;
 }
 

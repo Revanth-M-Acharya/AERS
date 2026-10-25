@@ -83,11 +83,11 @@ directories:
 	@mkdir -p $(OBJ_DIR)/hospital_dashboard $(OBJ_DIR)/traffic_dashboard
 	@mkdir -p $(OBJ_DIR)/apps $(OBJ_DIR)/tests/unit
 
-$(OBJ_DIR)/%.o: src/%.cpp
+$(OBJ_DIR)/%.o: src/%.cpp | directories
 	@echo "[CXX] $<"
 	@$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
 
-$(STATIC_LIB): $(ALL_OBJS)
+$(STATIC_LIB): $(ALL_OBJS) | directories
 	@echo "[AR] $@"
 	@ar rcs $@ $(ALL_OBJS)
 
@@ -127,7 +127,7 @@ $(TRAFFIC_TEST_BIN): tests/unit/test_traffic_signal_node.cpp $(STATIC_LIB)
 	@echo "[LINK] $@"
 	@$(CXX) $(CXXFLAGS) $(INCLUDES) $< -L$(LIB_DIR) -laegis -o $@
 
-test: $(SMOKE_TEST_BIN) $(FOUNDATION_TEST_BIN) $(COMM_TEST_BIN) $(COORD_TEST_BIN) $(AMB_TEST_BIN) $(TRAFFIC_TEST_BIN)
+test: directories $(SMOKE_TEST_BIN) $(FOUNDATION_TEST_BIN) $(COMM_TEST_BIN) $(COORD_TEST_BIN) $(AMB_TEST_BIN) $(TRAFFIC_TEST_BIN)
 	@echo "=========================================================="
 	@echo " Running SMART AEGIS Test Suites"
 	@echo "=========================================================="

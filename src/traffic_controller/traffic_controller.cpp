@@ -101,6 +101,7 @@ void TrafficController::Stop() {
 void TrafficController::Shutdown() {
     std::lock_guard<std::mutex> lock(m_mutex);
     m_isRunning = false;
+    m_isFailSafeActive = false;
     m_preemptionManager.CancelEmergency();
     m_recoveryManager.Reset();
     m_stateMachine.Reset(SignalState::UNKNOWN);
@@ -118,6 +119,10 @@ void TrafficController::Shutdown() {
 void TrafficController::Tick(uint32_t deltaMs) {
     std::lock_guard<std::mutex> lock(m_mutex);
     if (!m_isInitialized || !m_isRunning) {
+        return;
+    }
+
+    if (m_isFailSafeActive) {
         return;
     }
 
@@ -251,6 +256,44 @@ bool TrafficController::IsPreemptionActive() const noexcept {
 
 bool TrafficController::IsRecoveryActive() const noexcept {
     return m_recoveryManager.IsRecoveryActive();
+}
+
+bool TrafficController::EnterFailSafe(SignalState failSafeState) {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    if (!m_isInitialized) {
+        return false;
+    }
+    m_isFailSafeActive = true;
+    m_preemptionManager.CancelEmergency();
+    m_recoveryManager.Reset();
+    if (m_stateMachine.TransitionTo(failSafeState)) {
+        ApplyGpioLampState(failSafeState);
+    }
+    m_stateElapsedMs = 0;
+    logger::Logger::Instance().Log(
+        logger::LogLevel::WARN, "TRAFFIC_CTRL", "Entered Fail-Safe state: " + SignalStateToString(failSafeState));
+    return true;
+}
+
+bool TrafficController::RestoreNormalCycle() {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    if (!m_isInitialized) {
+        return false;
+    }
+    m_isFailSafeActive = false;
+    m_preemptionManager.CancelEmergency();
+    m_recoveryManager.Reset();
+    m_stateMachine.Reset(SignalState::RED);
+    m_stateElapsedMs = 0;
+    ApplyGpioLampState(SignalState::RED);
+    logger::Logger::Instance().Log(
+        logger::LogLevel::INFO, "TRAFFIC_CTRL", "Normal cycle restored to RED.");
+    return true;
+}
+
+bool TrafficController::IsFailSafeActive() const noexcept {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    return m_isFailSafeActive;
 }
 
 void TrafficController::SetTimingConfig(const TrafficTimingConfig& config) {

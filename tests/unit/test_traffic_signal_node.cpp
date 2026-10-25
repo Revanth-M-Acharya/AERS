@@ -344,11 +344,308 @@ void TestTrafficSignalNodeLifecycle() {
     std::cout << "  -> PASS: TrafficSignalNode lifecycle verified." << std::endl;
 }
 
+void TestMqttConnectionAndLifecycle() {
+    std::cout << "[TEST] 8. MQTT Connection, Lifecycle & Topics..." << std::endl;
+
+    TrafficSignalNode node("INT-01");
+    assert(!node.IsConnected());
+    assert(node.GetCommandTopic() == "aegis/intersection/INT-01/commands");
+    assert(node.GetStatusTopic() == "aegis/intersection/INT-01/status");
+
+    // Connect
+    assert(node.Connect("127.0.0.1", 1883, false));
+    assert(node.IsConnected());
+
+    // Disconnect
+    node.Disconnect();
+    assert(!node.IsConnected());
+
+    // Reconnect
+    assert(node.Reconnect());
+    assert(node.IsConnected());
+
+    node.Disconnect();
+    std::cout << "  -> PASS: MQTT Connection lifecycle verified." << std::endl;
+}
+
+void TestMqttSubscriptionAndPublication() {
+    std::cout << "[TEST] 9. MQTT Subscription, Publication & Status Schema..." << std::endl;
+
+    auto netManager = std::make_shared<aegis::network::NetworkManager>();
+    netManager->Initialize("127.0.0.1", 1883, false, "COORD-TEST");
+
+    std::vector<std::string> receivedStatus;
+    netManager->Subscribe("aegis/intersection/INT-02/status", [&](const std::string&, const std::string& payload) {
+        receivedStatus.push_back(payload);
+    });
+
+    TrafficSignalNode node("INT-02", netManager);
+    assert(node.Start());
+    assert(node.Connect("127.0.0.1", 1883, false));
+
+    // Force publish status
+    assert(node.PublishStatus(true));
+    assert(!receivedStatus.empty());
+
+    // Verify deserialization using Serializer
+    auto parseRes = aegis::network::Serializer::DeserializeIntersectionStatus(receivedStatus.back());
+    assert(parseRes.IsOk());
+    auto status = parseRes.Value();
+    assert(status.intersectionId == "INT-02");
+    assert(status.currentState == "RED");
+    assert(!status.emergencyActive);
+    assert(!status.recoveryActive);
+    assert(status.health == "HEALTHY");
+
+    node.Stop();
+    std::cout << "  -> PASS: MQTT Subscription and Status publication verified." << std::endl;
+}
+
+void TestPreemptAndClearCommands() {
+    std::cout << "[TEST] 10. PREEMPT & CLEAR Inbound Commands..." << std::endl;
+
+    auto netManager = std::make_shared<aegis::network::NetworkManager>();
+    netManager->Initialize("127.0.0.1", 1883, false, "COORD-TEST");
+
+    std::vector<std::string> statusUpdates;
+    netManager->Subscribe("aegis/intersection/INT-03/status", [&](const std::string&, const std::string& payload) {
+        statusUpdates.push_back(payload);
+    });
+
+    TrafficTimingConfig config;
+    config.allRedClearanceMs = 100;
+    config.recoveryDurationMs = 100;
+
+    TrafficSignalNode node("INT-03", std::make_unique<TrafficController>(CreateSimulationGpio(), config), netManager);
+    assert(node.Start());
+    assert(node.Connect("127.0.0.1", 1883, false));
+
+    assert(node.GetCurrentState() == SignalState::RED);
+
+    // 1. Send PREEMPT command (raw string)
+    assert(node.ProcessCommand("PREEMPT"));
+    assert(node.GetController().IsPreemptionActive());
+    assert(node.GetCurrentState() == SignalState::ALL_RED);
+
+    // Verify published status reflects emergency_active == true
+    assert(!statusUpdates.empty());
+    auto status1 = aegis::network::Serializer::DeserializeIntersectionStatus(statusUpdates.back()).Value();
+    assert(status1.emergencyActive);
+    assert(status1.currentState == "ALL_RED");
+
+    // Advance clearance to reach GREEN
+    node.Tick(100);
+    assert(node.GetCurrentState() == SignalState::GREEN);
+
+    // 2. Send CLEAR command (JSON format: {"command": "CLEAR"})
+    assert(node.ProcessCommand("{\"command\": \"CLEAR\"}"));
+    assert(!node.GetController().IsPreemptionActive());
+    assert(node.GetController().IsRecoveryActive());
+
+    auto status2 = aegis::network::Serializer::DeserializeIntersectionStatus(statusUpdates.back()).Value();
+    assert(!status2.emergencyActive);
+    assert(status2.recoveryActive);
+
+    // Advance recovery to finish
+    node.Tick(100);
+    assert(!node.GetController().IsRecoveryActive());
+    assert(node.GetCurrentState() == SignalState::YELLOW);
+
+    node.Stop();
+    std::cout << "  -> PASS: PREEMPT & CLEAR commands verified." << std::endl;
+}
+
+void TestRestorePingStatusCommands() {
+    std::cout << "[TEST] 11. RESTORE, PING, & STATUS_REQUEST Commands..." << std::endl;
+
+    auto netManager = std::make_shared<aegis::network::NetworkManager>();
+    netManager->Initialize("127.0.0.1", 1883, false, "COORD-TEST");
+
+    std::vector<std::string> statusList;
+    netManager->Subscribe("aegis/intersection/INT-04/status", [&](const std::string&, const std::string& payload) {
+        statusList.push_back(payload);
+    });
+
+    TrafficSignalNode node("INT-04", netManager);
+    assert(node.Start());
+    assert(node.Connect("127.0.0.1", 1883, false));
+
+    // Force preemption then RESTORE
+    node.ProcessCommand("PREEMPT");
+    assert(node.GetCurrentState() == SignalState::ALL_RED);
+
+    // RESTORE should reset directly to RED and normal cycle
+    assert(node.ProcessCommand("RESTORE"));
+    assert(node.GetCurrentState() == SignalState::RED);
+    assert(!node.GetController().IsPreemptionActive());
+    assert(!node.GetController().IsRecoveryActive());
+
+    // PING should publish immediately
+    size_t countBeforePing = statusList.size();
+    assert(node.ProcessCommand("PING"));
+    assert(statusList.size() > countBeforePing);
+
+    // STATUS_REQUEST should publish complete state immediately
+    size_t countBeforeReq = statusList.size();
+    assert(node.ProcessCommand("STATUS_REQUEST"));
+    assert(statusList.size() > countBeforeReq);
+
+    auto finalStatus = aegis::network::Serializer::DeserializeIntersectionStatus(statusList.back()).Value();
+    assert(finalStatus.intersectionId == "INT-04");
+    assert(finalStatus.currentState == "RED");
+
+    node.Stop();
+    std::cout << "  -> PASS: RESTORE, PING, & STATUS_REQUEST commands verified." << std::endl;
+}
+
+void TestHeartbeatAndTimeoutFailSafe() {
+    std::cout << "[TEST] 12. Periodic Heartbeat & 5s Timeout Fail-Safe (FLASHING_YELLOW)..." << std::endl;
+
+    auto netManager = std::make_shared<aegis::network::NetworkManager>();
+    netManager->Initialize("127.0.0.1", 1883, false, "COORD-TEST");
+
+    TrafficSignalNode node("INT-05", netManager);
+    assert(node.Start());
+    assert(node.Connect("127.0.0.1", 1883, false));
+
+    uint64_t initialHb = node.GetHeartbeatCounter();
+
+    // Advance 1000ms: node should send heartbeat
+    node.Tick(1000);
+    assert(node.GetHeartbeatCounter() > initialHb);
+
+    // Keep advancing without coordinator heartbeat up to 4000ms: still healthy
+    node.Tick(3000);
+    assert(node.GetCurrentState() != SignalState::FLASHING_YELLOW);
+    assert(node.GetHealthStatus() == "HEALTHY");
+
+    // Advance past 5000ms (total 5000ms elapsed without coordinator heartbeat)
+    node.Tick(1000);
+    // Timeout should trigger FLASHING_YELLOW
+    assert(node.GetCurrentState() == SignalState::FLASHING_YELLOW);
+    assert(node.GetHealthStatus() == "DEGRADED");
+
+    // While in fail-safe, further ticks remain in FLASHING_YELLOW
+    node.Tick(2000);
+    assert(node.GetCurrentState() == SignalState::FLASHING_YELLOW);
+
+    // Coordinator sends HEARTBEAT command -> communication returns!
+    assert(node.ProcessCommand("HEARTBEAT"));
+    assert(node.GetCurrentState() == SignalState::RED);
+    assert(node.GetHealthStatus() == "HEALTHY");
+
+    node.Stop();
+    std::cout << "  -> PASS: Heartbeat and timeout fail-safe verified." << std::endl;
+}
+
+void TestCoordinatorReconnectAndStateSync() {
+    std::cout << "[TEST] 13. Coordinator Reconnect & State Synchronization..." << std::endl;
+
+    auto netManager = std::make_shared<aegis::network::NetworkManager>();
+    netManager->Initialize("127.0.0.1", 1883, false, "COORD-TEST");
+
+    std::vector<std::string> syncMessages;
+    netManager->Subscribe("aegis/intersection/INT-06/status", [&](const std::string&, const std::string& payload) {
+        syncMessages.push_back(payload);
+    });
+
+    TrafficSignalNode node("INT-06", netManager);
+    assert(node.Start());
+    assert(node.Connect("127.0.0.1", 1883, false));
+
+    // Put node in emergency preemption
+    node.ProcessCommand("PREEMPT");
+    size_t countBeforeSync = syncMessages.size();
+
+    // Simulate coordinator reconnected and requesting status
+    node.ProcessCommand("STATUS_REQUEST");
+    assert(syncMessages.size() > countBeforeSync);
+
+    auto syncStatus = aegis::network::Serializer::DeserializeIntersectionStatus(syncMessages.back()).Value();
+    assert(syncStatus.intersectionId == "INT-06");
+    assert(syncStatus.emergencyActive);
+    assert(syncStatus.currentState == "ALL_RED");
+
+    node.Stop();
+    std::cout << "  -> PASS: Coordinator Reconnect & State Synchronization verified." << std::endl;
+}
+
+void TestNetworkReconnectAndContinuity() {
+    std::cout << "[TEST] 14. Network Reconnect & Local Traffic Continuity..." << std::endl;
+
+    TrafficTimingConfig config;
+    config.redDurationMs = 100;
+    config.greenDurationMs = 100;
+    config.yellowDurationMs = 100;
+
+    auto netManager = std::make_shared<aegis::network::NetworkManager>();
+    netManager->Initialize("127.0.0.1", 1883, false, "COORD-TEST");
+
+    TrafficSignalNode node("INT-07", std::make_unique<TrafficController>(CreateSimulationGpio(), config), netManager);
+    assert(node.Start());
+    assert(node.Connect("127.0.0.1", 1883, false));
+
+    // Initial state: RED
+    assert(node.GetCurrentState() == SignalState::RED);
+
+    // Network disconnects!
+    node.Disconnect();
+    assert(!node.IsConnected());
+
+    // Local controller must MAINTAIN state and continue cycling
+    node.Tick(100);
+    assert(node.GetCurrentState() == SignalState::GREEN);
+
+    node.Tick(100);
+    assert(node.GetCurrentState() == SignalState::YELLOW);
+
+    // Network reconnects
+    assert(node.Reconnect());
+    assert(node.IsConnected());
+
+    // Controller preserved state (still in YELLOW or advanced cleanly)
+    assert(node.GetCurrentState() == SignalState::YELLOW);
+
+    node.Stop();
+    std::cout << "  -> PASS: Network Reconnect & Local Continuity verified." << std::endl;
+}
+
+void TestDuplicatePublishSuppression() {
+    std::cout << "[TEST] 15. Duplicate Publication Suppression..." << std::endl;
+
+    auto netManager = std::make_shared<aegis::network::NetworkManager>();
+    netManager->Initialize("127.0.0.1", 1883, false, "COORD-TEST");
+
+    std::vector<std::string> published;
+    netManager->Subscribe("aegis/intersection/INT-08/status", [&](const std::string&, const std::string& payload) {
+        published.push_back(payload);
+    });
+
+    TrafficSignalNode node("INT-08", netManager);
+    assert(node.Start());
+    assert(node.Connect("127.0.0.1", 1883, false));
+
+    size_t count1 = published.size();
+    // First publish without force should be suppressed if identical to connect-publish
+    bool publishedAgain = node.PublishStatus(false);
+    assert(!publishedAgain);
+    assert(published.size() == count1); // No duplicate published!
+
+    // Force publish must bypass suppression
+    bool forcedPublish = node.PublishStatus(true);
+    assert(forcedPublish);
+    assert(published.size() == count1 + 1);
+
+    node.Stop();
+    std::cout << "  -> PASS: Duplicate publication suppression verified." << std::endl;
+}
+
 int main() {
     std::cout << "==========================================================" << std::endl;
-    std::cout << " SMART AEGIS - Phase 5A Traffic Signal Node Test Suite" << std::endl;
+    std::cout << " SMART AEGIS - Phase 5 Traffic Signal Node Test Suite" << std::endl;
     std::cout << "==========================================================" << std::endl;
 
+    // Phase 5A Foundation Tests
     TestGpioAbstractionAndLogging();
     TestInvalidTransitions();
     TestPreemptionAndRecoveryManagers();
@@ -357,8 +654,19 @@ int main() {
     TestTrafficControllerLifecycle();
     TestTrafficSignalNodeLifecycle();
 
+    // Phase 5B MQTT Integration Tests
+    TestMqttConnectionAndLifecycle();
+    TestMqttSubscriptionAndPublication();
+    TestPreemptAndClearCommands();
+    TestRestorePingStatusCommands();
+    TestHeartbeatAndTimeoutFailSafe();
+    TestCoordinatorReconnectAndStateSync();
+    TestNetworkReconnectAndContinuity();
+    TestDuplicatePublishSuppression();
+
     std::cout << "==========================================================" << std::endl;
-    std::cout << " [ALL TESTS PASSED] Phase 5A Foundation Fully Verified!" << std::endl;
+    std::cout << " [ALL 15 TESTS PASSED] Phase 5A & 5B Fully Verified!" << std::endl;
     std::cout << "==========================================================" << std::endl;
     return 0;
 }
+

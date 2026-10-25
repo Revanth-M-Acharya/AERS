@@ -67,9 +67,12 @@ int main() {
     assert(traffic.Start());
     traffic.Stop();
 
-    aegis::edge::traffic::TrafficSignalNode signalNode;
+    aegis::edge::traffic::TrafficSignalNode signalNode("INT-101");
     assert(signalNode.Start());
+    assert(signalNode.Connect("127.0.0.1", 1883, false));
     signalNode.Tick(50);
+    assert(signalNode.PublishStatus(true));
+    signalNode.Disconnect();
     signalNode.Stop();
 
     // 11. Hospital Dashboard

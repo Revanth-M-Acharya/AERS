@@ -127,6 +127,25 @@ struct FaultEventMsg {
     uint64_t timestamp{0};
 };
 
+// 7.11 IntersectionStatus
+struct IntersectionStatusMsg {
+    std::string intersectionId;
+    std::string currentState;
+    bool emergencyActive{false};
+    bool recoveryActive{false};
+    uint64_t heartbeatCounter{0};
+    uint64_t uptimeMs{0};
+    uint64_t timestamp{0};
+    std::string health{"HEALTHY"};
+};
+
+// 7.12 IntersectionCommand
+struct IntersectionCommandMsg {
+    std::string command;
+    std::string intersectionId;
+    uint64_t timestamp{0};
+};
+
 class Serializer {
 public:
     // Serializers
@@ -140,6 +159,8 @@ public:
     static std::string Serialize(const PriorityDecisionMsg& msg);
     static std::string Serialize(const HeartbeatMsg& msg);
     static std::string Serialize(const FaultEventMsg& msg);
+    static std::string Serialize(const IntersectionStatusMsg& msg);
+    static std::string Serialize(const IntersectionCommandMsg& msg);
 
     // Deserializers
     static common::Result<EmergencyRequestMsg> DeserializeEmergencyRequest(std::string_view json);
@@ -152,6 +173,8 @@ public:
     static common::Result<PriorityDecisionMsg> DeserializePriorityDecision(std::string_view json);
     static common::Result<HeartbeatMsg> DeserializeHeartbeat(std::string_view json);
     static common::Result<FaultEventMsg> DeserializeFaultEvent(std::string_view json);
+    static common::Result<IntersectionStatusMsg> DeserializeIntersectionStatus(std::string_view json);
+    static common::Result<IntersectionCommandMsg> DeserializeIntersectionCommand(std::string_view json);
 };
 
 } // namespace network

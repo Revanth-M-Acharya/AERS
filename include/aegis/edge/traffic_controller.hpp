@@ -54,15 +54,18 @@ public:
     // State Progression
     void Tick(uint32_t deltaMs = 100);
 
-    // Preemption Controls
+    // Preemption & Fail-Safe Controls
     bool RequestPreemption();
     bool ClearPreemption();
+    bool EnterFailSafe(SignalState failSafeState = SignalState::FLASHING_YELLOW);
+    bool RestoreNormalCycle();
 
     // State Queries
     SignalState GetCurrentState() const;
     std::string GetCurrentStateString() const;
     bool IsPreemptionActive() const noexcept;
     bool IsRecoveryActive() const noexcept;
+    bool IsFailSafeActive() const noexcept;
 
     // Subsystem Accessors (for inspection/testing)
     const SignalStateMachine& GetStateMachine() const noexcept { return m_stateMachine; }
@@ -86,6 +89,7 @@ private:
     uint32_t m_stateElapsedMs{0};
     bool m_isInitialized{false};
     bool m_isRunning{false};
+    bool m_isFailSafeActive{false};
     std::string m_intersectionId{"INT-01"};
 };
 

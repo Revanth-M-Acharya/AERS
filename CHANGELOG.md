@@ -5,6 +5,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+- Complete Phase 5B: Traffic Signal Node MQTT Integration (`aegis_traffic_controller`):
+  1. `TrafficSignalNode` MQTT V2I Communication: Full bidirectional integration with Central Coordinator via `aegis/intersection/{id}/commands` and `aegis/intersection/{id}/status`.
+  2. Supported Commands: High-priority execution of `PREEMPT`, `CLEAR`, `RESTORE`, `HEARTBEAT`, `PING`, and `STATUS_REQUEST` payloads (supporting both raw strings and structured JSON format).
+  3. Real-Time Telemetry & Heartbeat: 1 Hz node heartbeat and status publishing including `intersection_id`, `current_state`, `emergency_active`, `recovery_active`, `heartbeat_counter`, `uptime_ms`, `timestamp`, and `health`.
+  4. Heartbeat Timeout Fail-Safe: Automatic transition to `FLASHING_YELLOW` fail-safe mode if coordinator communication is lost for >5 seconds, with automatic recovery upon message resumption.
+  5. Fault-Tolerant Reconnect & State Continuity: Local signal cycle execution continues uninterrupted during network disconnects, and state synchronization is dispatched immediately upon reconnect.
+  6. Duplicate Publication Suppression: Deduplication layer ensuring zero redundant network broadcasts.
+  7. ICD Schemas: Added `IntersectionStatusMsg` and `IntersectionCommandMsg` serialization and deserialization to `Serializer`.
+  8. Fixed immediate prefix extraction in `JsonHelper::ExtractBool` to prevent false positive matches against trailing boolean keys.
+- Comprehensive automated test suite (`tests/unit/test_traffic_signal_node.cpp`) expanded to 15 test suites covering all MQTT connection, command, timeout, fail-safe, and state sync behaviors with 100% pass rate.
 - Complete Phase 5A: Traffic Signal Node Foundation (`aegis_traffic_controller`) in modern C++17:
   1. `IGpioInterface` & `SimulationGpioInterface`: Pure virtual hardware abstraction layer decoupling traffic controller logic from physical GPIO/relay hardware. `SimulationGpioInterface` logs all simulated lamp actuations (`SET_RED`, `SET_YELLOW`, `SET_GREEN`, `FLASH_YELLOW`, `FLASH_RED`, `ALL_OFF`, `SHUTDOWN`) without hardware dependencies.
   2. `SignalStateMachine`: Deterministic Finite State Machine enforcing valid normal cycles (`RED -> GREEN -> YELLOW -> RED`) and emergency preemption sequences (`Current -> ALL_RED -> GREEN -> Hold Green -> Recovery -> YELLOW -> RED`), while strictly rejecting hazardous transitions (e.g., `GREEN -> RED`, `YELLOW -> GREEN`, `RED -> YELLOW`).

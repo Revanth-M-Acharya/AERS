@@ -389,5 +389,85 @@ common::Result<FaultEventMsg> Serializer::DeserializeFaultEvent(std::string_view
     return common::Result<FaultEventMsg>::Ok(msg);
 }
 
+std::string Serializer::Serialize(const IntersectionStatusMsg& msg) {
+    std::ostringstream oss;
+    oss << "{"
+        << JsonHelper::FormatField("intersection_id", msg.intersectionId)
+        << JsonHelper::FormatField("current_state", msg.currentState)
+        << JsonHelper::FormatField("emergency_active", msg.emergencyActive)
+        << JsonHelper::FormatField("recovery_active", msg.recoveryActive)
+        << JsonHelper::FormatField("heartbeat_counter", static_cast<int64_t>(msg.heartbeatCounter))
+        << JsonHelper::FormatField("uptime_ms", static_cast<int64_t>(msg.uptimeMs))
+        << JsonHelper::FormatField("timestamp", static_cast<int64_t>(msg.timestamp))
+        << JsonHelper::FormatField("health", msg.health, true)
+        << "}";
+    return oss.str();
+}
+
+std::string Serializer::Serialize(const IntersectionCommandMsg& msg) {
+    std::ostringstream oss;
+    oss << "{"
+        << JsonHelper::FormatField("command", msg.command)
+        << JsonHelper::FormatField("intersection_id", msg.intersectionId)
+        << JsonHelper::FormatField("timestamp", static_cast<int64_t>(msg.timestamp), true)
+        << "}";
+    return oss.str();
+}
+
+common::Result<IntersectionStatusMsg> Serializer::DeserializeIntersectionStatus(std::string_view json) {
+    auto id = JsonHelper::ExtractString(json, "intersection_id");
+    if (!id) id = JsonHelper::ExtractString(json, "intersectionId");
+
+    auto state = JsonHelper::ExtractString(json, "current_state");
+    if (!state) state = JsonHelper::ExtractString(json, "currentState");
+
+    if (!id || !state) {
+        return common::Result<IntersectionStatusMsg>::Err(common::ErrorCode::ERR_INVALID_MESSAGE);
+    }
+
+    IntersectionStatusMsg msg;
+    msg.intersectionId = *id;
+    msg.currentState = *state;
+
+    auto em = JsonHelper::ExtractBool(json, "emergency_active");
+    if (!em) em = JsonHelper::ExtractBool(json, "emergencyActive");
+    msg.emergencyActive = em.value_or(false);
+
+    auto rec = JsonHelper::ExtractBool(json, "recovery_active");
+    if (!rec) rec = JsonHelper::ExtractBool(json, "recoveryActive");
+    msg.recoveryActive = rec.value_or(false);
+
+    auto hb = JsonHelper::ExtractInt64(json, "heartbeat_counter");
+    if (!hb) hb = JsonHelper::ExtractInt64(json, "heartbeatCounter");
+    msg.heartbeatCounter = static_cast<uint64_t>(hb.value_or(0));
+
+    auto up = JsonHelper::ExtractInt64(json, "uptime_ms");
+    if (!up) up = JsonHelper::ExtractInt64(json, "uptimeMs");
+    msg.uptimeMs = static_cast<uint64_t>(up.value_or(0));
+
+    msg.timestamp = static_cast<uint64_t>(JsonHelper::ExtractInt64(json, "timestamp").value_or(0));
+    msg.health = JsonHelper::ExtractString(json, "health").value_or("HEALTHY");
+
+    return common::Result<IntersectionStatusMsg>::Ok(msg);
+}
+
+common::Result<IntersectionCommandMsg> Serializer::DeserializeIntersectionCommand(std::string_view json) {
+    auto cmd = JsonHelper::ExtractString(json, "command");
+    if (!cmd) {
+        return common::Result<IntersectionCommandMsg>::Err(common::ErrorCode::ERR_INVALID_MESSAGE);
+    }
+
+    IntersectionCommandMsg msg;
+    msg.command = *cmd;
+
+    auto id = JsonHelper::ExtractString(json, "intersection_id");
+    if (!id) id = JsonHelper::ExtractString(json, "intersectionId");
+    msg.intersectionId = id.value_or("");
+
+    msg.timestamp = static_cast<uint64_t>(JsonHelper::ExtractInt64(json, "timestamp").value_or(0));
+    return common::Result<IntersectionCommandMsg>::Ok(msg);
+}
+
 } // namespace network
 } // namespace aegis
+

@@ -185,17 +185,23 @@ The Ambulance On-Board Unit subsystem (`aegis_ambulance`) implements the vehicle
 
 ---
 
-## 9. Traffic Signal Node Foundation (Phase 5A)
+## 9. Traffic Signal Node (Phase 5A & 5B)
 
-The Traffic Signal Node subsystem (`aegis_traffic_controller`) provides a deterministic, hardware-independent roadside intersection controller and preemption foundation:
+The Traffic Signal Node subsystem (`aegis_traffic_controller`) provides a deterministic, hardware-independent roadside intersection controller and MQTT V2I communication foundation connecting roadside units with the Central Coordinator:
 
-1. **TrafficSignalNode:** Top-level edge daemon managing controller lifecycle (`Start()`, `Stop()`, `Run()`, `Tick()`) and deterministic stepping.
-2. **TrafficController:** Master coordinator governing the signal state machine, emergency preemption manager, recovery manager, and GPIO abstraction interface.
+1. **TrafficSignalNode:** Top-level edge daemon managing controller lifecycle (`Start()`, `Stop()`, `Run()`, `Tick()`), deterministic stepping, and bidirectional MQTT V2I communications (`Connect()`, `Disconnect()`, `Reconnect()`, `Subscribe()`, `PublishStatus()`, `ProcessCommand()`, `SendHeartbeat()`).
+2. **TrafficController:** Master coordinator governing the signal state machine, emergency preemption manager, recovery manager, fail-safe modes (`EnterFailSafe()`, `RestoreNormalCycle()`), and GPIO abstraction interface. Completely decoupled from MQTT.
 3. **SignalStateMachine:** Strict deterministic Finite State Machine (FSM) enforcing valid normal cycles (`RED -> GREEN -> YELLOW -> RED`) and emergency cycles (`Current -> ALL_RED -> GREEN -> Hold Green -> Recovery -> YELLOW -> RED`), while categorically rejecting hazardous transitions (such as `GREEN -> RED`, `YELLOW -> GREEN`, or `RED -> YELLOW`).
 4. **PreemptionManager:** Dedicated state manager managing emergency preemption requests (`StartEmergency()`, `CancelEmergency()`, `IsEmergencyActive()`) without coupling to timing or GPIO.
 5. **RecoveryManager:** Dedicated recovery cycle manager tracking post-clearance stabilization (`StartRecovery()`, `RecoveryFinished()`, `Reset()`, `IsRecoveryActive()`).
-6. **IGpioInterface & SimulationGpioInterface:** Complete hardware abstraction interface decoupling signal logic from physical relays or SBC GPIOs. `SimulationGpioInterface` logs all simulated lamp actuations (`RED`, `YELLOW`, `GREEN`, `ALL_RED`, `FLASHING_YELLOW`, `FLASHING_RED`, `ALL_OFF`, `SHUTDOWN`) without any external dependencies.
+6. **IGpioInterface & SimulationGpioInterface:** Complete hardware abstraction interface decoupling signal logic from physical relays or SBC GPIOs. `SimulationGpioInterface` logs all simulated lamp actuations (`SET_RED`, `SET_YELLOW`, `SET_GREEN`, `ALL_RED`, `FLASHING_YELLOW`, `FLASHING_RED`, `ALL_OFF`, `SHUTDOWN`) without any external dependencies.
 7. **TrafficTimingConfig:** Fully configurable timing parameters (`redDurationMs`, `greenDurationMs`, `yellowDurationMs`, `allRedClearanceMs`, `emergencyHoldDurationMs`, `recoveryDurationMs`) eliminating hardcoded magic numbers.
+8. **MQTT V2I Communication & Supported Commands:**
+   - Subscribes to `aegis/intersection/{intersection_id}/commands`.
+   - Supports commands: `PREEMPT` (trigger emergency corridor), `CLEAR` (cancel emergency & begin recovery), `RESTORE` (restore normal cycle), `HEARTBEAT` (coordinator liveness ping), `PING` (immediate status publication), `STATUS_REQUEST` (full state broadcast).
+   - Publishes 1 Hz heartbeats and real-time state telemetry to `aegis/intersection/{intersection_id}/status` including `intersection_id`, `current_state`, `emergency_active`, `recovery_active`, `heartbeat_counter`, `uptime_ms`, `timestamp`, and `health`.
+   - **Fault-Tolerant Watchdog:** If coordinator heartbeat is lost for >5 seconds, the node automatically enters `FLASHING_YELLOW` fail-safe mode until communication is restored. If MQTT connection drops, the local controller continues executing cycles without disruption and synchronizes state upon reconnect.
+   - **Duplicate Suppression:** Automatic duplicate publication suppression ensures zero redundant network traffic.
 
 ---
 
