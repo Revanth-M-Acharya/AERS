@@ -57,6 +57,8 @@ int main() {
     // 9. Ambulance Node
     aegis::edge::ambulance::AmbulanceNode ambulance;
     assert(ambulance.Initialize("AMB-01", "config/default.json"));
+    assert(ambulance.Start());
+    ambulance.Stop();
 
     // 10. Traffic Controller
     aegis::edge::traffic::TrafficController traffic;

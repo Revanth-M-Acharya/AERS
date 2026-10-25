@@ -42,3 +42,14 @@ target_link_libraries(test_coordinator_core PRIVATE
     aegis_config
 )
 add_test(NAME test_coordinator_core COMMAND test_coordinator_core)
+
+add_executable(test_ambulance_node unit/test_ambulance_node.cpp)
+target_link_libraries(test_ambulance_node PRIVATE
+    aegis_ambulance
+    aegis_network
+    aegis_common
+    aegis_logger
+    aegis_config
+    aegis_safety
+)
+add_test(NAME test_ambulance_node COMMAND test_ambulance_node)

@@ -40,7 +40,7 @@ COORD_SRCS = src/coordinator/emergency_call_handler.cpp \
              src/coordinator/dispatch_engine.cpp \
              src/coordinator/dynamic_green_corridor.cpp \
              src/coordinator/coordinator.cpp
-AMB_SRCS = src/ambulance/gps_tracker.cpp src/ambulance/vitals_monitor.cpp src/ambulance/v2v_module.cpp src/ambulance/ambulance_node.cpp
+AMB_SRCS = src/ambulance/gps_tracker.cpp src/ambulance/vitals_monitor.cpp src/ambulance/v2v_module.cpp src/ambulance/ambulance_node.cpp src/ambulance/ambulance_mission_simulator.cpp
 TRAFFIC_SRCS = src/traffic_controller/gpio_interface.cpp src/traffic_controller/traffic_controller.cpp
 HOSP_SRCS = src/hospital_dashboard/hospital_dashboard_backend.cpp
 TRFDASH_SRCS = src/traffic_dashboard/traffic_dashboard_backend.cpp
@@ -59,10 +59,11 @@ SMOKE_TEST_BIN = $(BIN_DIR)/test_build_smoke
 FOUNDATION_TEST_BIN = $(BIN_DIR)/test_common_foundation
 COMM_TEST_BIN = $(BIN_DIR)/test_communication_infrastructure
 COORD_TEST_BIN = $(BIN_DIR)/test_coordinator_core
+AMB_TEST_BIN = $(BIN_DIR)/test_ambulance_node
 
 .PHONY: all clean test directories info
 
-all: directories $(STATIC_LIB) $(APPS) $(SMOKE_TEST_BIN) $(FOUNDATION_TEST_BIN) $(COMM_TEST_BIN) $(COORD_TEST_BIN)
+all: directories $(STATIC_LIB) $(APPS) $(SMOKE_TEST_BIN) $(FOUNDATION_TEST_BIN) $(COMM_TEST_BIN) $(COORD_TEST_BIN) $(AMB_TEST_BIN)
 	@echo "=========================================================="
 	@echo " SMART AEGIS Build Complete [$(BUILD_TYPE)]"
 	@echo " Binaries located in: $(BIN_DIR)"
@@ -112,7 +113,11 @@ $(COORD_TEST_BIN): tests/unit/test_coordinator_core.cpp $(STATIC_LIB)
 	@echo "[LINK] $@"
 	@$(CXX) $(CXXFLAGS) $(INCLUDES) $< -L$(LIB_DIR) -laegis -o $@
 
-test: $(SMOKE_TEST_BIN) $(FOUNDATION_TEST_BIN) $(COMM_TEST_BIN) $(COORD_TEST_BIN)
+$(AMB_TEST_BIN): tests/unit/test_ambulance_node.cpp $(STATIC_LIB)
+	@echo "[LINK] $@"
+	@$(CXX) $(CXXFLAGS) $(INCLUDES) $< -L$(LIB_DIR) -laegis -o $@
+
+test: $(SMOKE_TEST_BIN) $(FOUNDATION_TEST_BIN) $(COMM_TEST_BIN) $(COORD_TEST_BIN) $(AMB_TEST_BIN)
 	@echo "=========================================================="
 	@echo " Running SMART AEGIS Test Suites"
 	@echo "=========================================================="
@@ -120,6 +125,7 @@ test: $(SMOKE_TEST_BIN) $(FOUNDATION_TEST_BIN) $(COMM_TEST_BIN) $(COORD_TEST_BIN
 	@$(FOUNDATION_TEST_BIN)
 	@$(COMM_TEST_BIN)
 	@$(COORD_TEST_BIN)
+	@$(AMB_TEST_BIN)
 
 clean:
 	@rm -rf $(BUILD_DIR)

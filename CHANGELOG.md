@@ -14,6 +14,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Fixed argument handling in `scripts/build.sh` so both `./scripts/build.sh test` and `./scripts/build.sh <type> test` trigger automated test execution.
 
 ### Added
+- Complete Phase 4: Ambulance Node (OBU) Implementation (`aegis_ambulance`) in modern C++17:
+  1. `GpsTracker`: 10 Hz kinematic positioning engine featuring NMEA-0183 serial sentence parser (`$GPRMC`, `$GPGGA`) with checksum validation, coordinate conversion, waypoint simulation step interpolation, and Extended Kalman Filter (EKF) / Dead-Reckoning fallback upon GNSS fix loss.
+  2. `VitalsMonitor`: Real-time physiological patient telemetry engine generating multi-parameter vitals (Heart Rate, SpO2, Blood Pressure, Respiration Rate, Core Temperature, and GCS). Implements acute deterioration evaluation and instant alarm callbacks for critical conditions (acute hypoxia, cardiac arrest, hypotensive crisis, and severe pyrexia).
+  3. `V2vModule`: Autonomous ad-hoc wireless transceiver generating SAE J2735-compatible Basic Safety Messages (BSMs) at 10 Hz over UDP port 8999, along with direct vehicle-to-infrastructure (V2I) emergency preemption fallback beacons dispatched to roadside units on UDP port 8998.
+  4. `AmbulanceNode`: Main in-vehicle OBU edge daemon orchestrating GPS tracking, physiological telemetry, V2V safety broadcasting, and vehicle operational state transitions (`AVAILABLE`, `DISPATCHED`, `EN_ROUTE_PATIENT`, `ON_SCENE`, `EN_ROUTE_HOSPITAL`, `ARRIVED`). Features local store-and-forward telemetry ring buffering ensuring zero packet loss across WAN dropouts.
+  5. `AmbulanceMissionSimulator`: Full incident mission simulator executing end-to-end mission lifecycle (`Dispatch` -> `Travel to patient` -> `Pickup on-scene` -> `Travel to hospital` -> `Arrive at trauma bay` -> `Mission complete`) with continuous coordinate updates.
+  6. Python simulation tools updated (`tools/simulator/gps_simulator`, `tools/simulator/vitals_simulator`, `tools/simulator/ambulance_simulator`).
+- Comprehensive automated unit test suite (`tests/unit/test_ambulance_node.cpp`) covering all 6 test suites with 100% pass rate.
 - Complete Phase 3: Coordinator Core (`aegis_coordinator` and `aegis_route_planner`) in modern C++17:
   1. `CentralCoordinator` (`Coordinator`): Master dispatch orchestrator uniting call intake, fleet tracking, route planning, dynamic green corridor preemption, and MQTT telemetry broadcast.
   2. `EmergencyCallHandler`: 911 distress call qualification, metropolitan geofencing validation, symptom-based triage categorization (`CODE_RED`, `CODE_AMBER`, `CODE_GREEN`), and required capability inference.

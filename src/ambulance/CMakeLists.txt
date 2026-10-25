@@ -3,6 +3,7 @@ add_library(aegis_ambulance STATIC
     gps_tracker.cpp
     vitals_monitor.cpp
     v2v_module.cpp
+    ambulance_mission_simulator.cpp
 )
 target_include_directories(aegis_ambulance PUBLIC ${CMAKE_SOURCE_DIR}/include)
 target_link_libraries(aegis_ambulance PUBLIC

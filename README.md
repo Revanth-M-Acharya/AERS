@@ -173,7 +173,19 @@ The Coordinator subsystem (`aegis_coordinator` and `aegis_route_planner`) provid
 
 ---
 
-## 8. How to Run Tests
+## 8. Ambulance Node (Phase 4)
+
+The Ambulance On-Board Unit subsystem (`aegis_ambulance`) implements the vehicle edge controller, kinematic tracking, physiological patient monitoring, and ad-hoc V2V communication:
+
+1. **AmbulanceNode:** Main in-vehicle OBU edge daemon orchestrating GPS tracking, physiological telemetry, V2V safety broadcasting, and vehicle operational state transitions (`AVAILABLE`, `DISPATCHED`, `EN_ROUTE_PATIENT`, `ON_SCENE`, `EN_ROUTE_HOSPITAL`, `ARRIVED`). Features local store-and-forward telemetry ring buffering ensuring zero packet loss across WAN dropouts.
+2. **GpsTracker:** 10 Hz kinematic positioning engine featuring NMEA-0183 serial sentence parser (`$GPRMC`, `$GPGGA`) with checksum validation, coordinate conversion, waypoint simulation step interpolation, and Extended Kalman Filter (EKF) / Dead-Reckoning fallback upon GNSS fix loss.
+3. **VitalsMonitor:** Real-time physiological patient telemetry engine generating realistic multi-parameter vitals (Heart Rate, SpO2, Blood Pressure, Respiration Rate, Core Temperature, and GCS). Implements acute deterioration evaluation and instant alarm callbacks for critical conditions (acute hypoxia, cardiac arrest, hypotensive crisis, and severe pyrexia).
+4. **V2vModule:** Autonomous ad-hoc wireless transceiver generating SAE J2735-compatible Basic Safety Messages (BSMs) at 10 Hz over UDP port 8999, along with direct vehicle-to-infrastructure (V2I) emergency preemption fallback beacons dispatched to roadside units on UDP port 8998.
+5. **AmbulanceMissionSimulator:** Comprehensive incident mission simulator advancing vehicle kinematics and vitals along street waypoints through the complete mission lifecycle (`Dispatch` -> `Travel to patient` -> `Pickup on-scene` -> `Travel to hospital` -> `Arrive at trauma bay` -> `Mission complete`).
+
+---
+
+## 9. How to Run Tests
 
 ### Automated Verification Test Suites
 ```bash
@@ -188,11 +200,12 @@ make test
 ./build/bin/test_common_foundation
 ./build/bin/test_communication_infrastructure
 ./build/bin/test_coordinator_core
+./build/bin/test_ambulance_node
 ```
 
 ---
 
-## 9. How to Add Future Modules
+## 10. How to Add Future Modules
 
 To add a new software module to SMART AEGIS, follow this standardized five-step engineering procedure:
 
