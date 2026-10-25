@@ -4,7 +4,7 @@
 
 CXX ?= clang++
 CXXFLAGS ?= -std=c++17 -Wall -Wextra -Wpedantic -Wconversion -Wshadow -Wnon-virtual-dtor
-INCLUDES = -Iinclude -Isrc
+INCLUDES = -Iinclude
 
 BUILD_TYPE ?= Debug
 ifeq ($(BUILD_TYPE),Release)

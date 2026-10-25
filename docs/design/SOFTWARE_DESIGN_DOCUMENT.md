@@ -1110,24 +1110,24 @@ The following table provides the exhaustive directory-to-source-file mapping for
 
 | Source File Path | Header File Path | Primary Responsibility |
 |---|---|---|
-| `src/common/geo_utils.cpp` | `src/common/geo_utils.hpp` | Haversine distance, bearing, and geospatial math. |
-| `src/config/config_manager.cpp` | `src/config/config_manager.hpp` | JSON schema parsing and configuration lookup. |
-| `src/logger/logger.cpp` | `src/logger/logger.hpp` | Asynchronous structured log serialization. |
-| `src/safety/watchdog.cpp` | `src/safety/watchdog.hpp` | Hardware watchdog timer (`/dev/watchdog`) driver. |
-| `src/safety/safety_monitor.cpp`| `src/safety/safety_monitor.hpp` | Multi-module heartbeat monitor and supervisor. |
-| `src/network/mqtt_client.cpp` | `src/network/mqtt_client.hpp` | Paho MQTT C++ wrapper with TLS and auto-reconnect. |
-| `src/network/network_manager.cpp`| `src/network/network_manager.hpp` | Unified network manager and store-forward queue. |
-| `src/priority_scheduler/priority_scheduler.cpp` | `src/priority_scheduler/priority_scheduler.hpp` | Multi-criteria triage ranking and arbitration. |
-| `src/route_planner/route_planner.cpp` | `src/route_planner/route_planner.hpp` | A* road graph pathfinder and intersection vectors. |
-| `src/coordinator/emergency_call_handler.cpp` | `src/coordinator/emergency_call_handler.hpp` | 911 call intake and incident qualification. |
-| `src/coordinator/dynamic_green_corridor.cpp` | `src/coordinator/dynamic_green_corridor.hpp` | Green corridor preemption calculator and releases. |
-| `src/coordinator/coordinator.cpp` | `src/coordinator/coordinator.hpp` | Central coordinator daemon main runtime loop. |
-| `src/ambulance/gps_tracker.cpp` | `src/ambulance/gps_tracker.hpp` | NMEA parser and 6-DOF IMU dead-reckoning engine. |
-| `src/ambulance/vitals_monitor.cpp` | `src/ambulance/vitals_monitor.hpp` | Biomedical vitals sampler and anomaly detector. |
-| `src/ambulance/v2v_module.cpp` | `src/ambulance/v2v_module.hpp` | Ad-hoc UDP BSM broadcast and direct V2I beacon. |
-| `src/ambulance/ambulance_node.cpp`| `src/ambulance/ambulance_node.hpp` | In-vehicle OBU main daemon runtime loop. |
-| `src/traffic_controller/gpio_interface.cpp` | `src/traffic_controller/gpio_interface.hpp` | Relay hardware driver and interlock checker. |
-| `src/traffic_controller/traffic_controller.cpp` | `src/traffic_controller/traffic_controller.hpp` | Deterministic signal phase FSM and preemption. |
+| `src/common/geo_utils.cpp` | `include/aegis/common/geo_utils.hpp` | Haversine distance, bearing, and geospatial math. |
+| `src/config/config_manager.cpp` | `include/aegis/config/config_manager.hpp` | JSON schema parsing and configuration lookup. |
+| `src/logger/logger.cpp` | `include/aegis/logger/logger.hpp` | Asynchronous structured log serialization. |
+| `src/safety/watchdog.cpp` | `include/aegis/safety/watchdog.hpp` | Hardware watchdog timer (`/dev/watchdog`) driver. |
+| `src/safety/safety_monitor.cpp`| `include/aegis/safety/safety_monitor.hpp` | Multi-module heartbeat monitor and supervisor. |
+| `src/network/mqtt_client.cpp` | `include/aegis/network/mqtt_client.hpp` | Paho MQTT C++ wrapper with TLS and auto-reconnect. |
+| `src/network/network_manager.cpp`| `include/aegis/network/network_manager.hpp` | Unified network manager and store-forward queue. |
+| `src/priority_scheduler/priority_scheduler.cpp` | `include/aegis/core/priority_scheduler.hpp` | Multi-criteria triage ranking and arbitration. |
+| `src/route_planner/route_planner.cpp` | `include/aegis/core/route_planner.hpp` | A* road graph pathfinder and intersection vectors. |
+| `src/coordinator/emergency_call_handler.cpp` | `include/aegis/core/emergency_call_handler.hpp` | 911 call intake and incident qualification. |
+| `src/coordinator/dynamic_green_corridor.cpp` | `include/aegis/core/dynamic_green_corridor.hpp` | Green corridor preemption calculator and releases. |
+| `src/coordinator/coordinator.cpp` | `include/aegis/core/coordinator.hpp` | Central coordinator daemon main runtime loop. |
+| `src/ambulance/gps_tracker.cpp` | `include/aegis/edge/gps_tracker.hpp` | NMEA parser and 6-DOF IMU dead-reckoning engine. |
+| `src/ambulance/vitals_monitor.cpp` | `include/aegis/edge/vitals_monitor.hpp` | Biomedical vitals sampler and anomaly detector. |
+| `src/ambulance/v2v_module.cpp` | `include/aegis/edge/v2v_module.hpp` | Ad-hoc UDP BSM broadcast and direct V2I beacon. |
+| `src/ambulance/ambulance_node.cpp`| `include/aegis/edge/ambulance_node.hpp` | In-vehicle OBU main daemon runtime loop. |
+| `src/traffic_controller/gpio_interface.cpp` | `include/aegis/edge/gpio_interface.hpp` | Relay hardware driver and interlock checker. |
+| `src/traffic_controller/traffic_controller.cpp` | `include/aegis/edge/traffic_controller.hpp` | Deterministic signal phase FSM and preemption. |
 | `src/hospital_dashboard/index.html` | N/A | Hospital ER admissions terminal and vitals chart. |
 | `src/traffic_dashboard/index.html` | N/A | Municipal traffic command and manual override map. |
 | `tools/simulator/gps_simulator/gps_simulator.py` | N/A | Virtual NMEA GNSS serial emitter over PTY. |

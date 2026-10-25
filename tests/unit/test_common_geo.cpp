@@ -1,7 +1,7 @@
 #include <cassert>
 #include <iostream>
 #include "aegis/common/types.hpp"
-#include "../../src/common/geo_utils.hpp"
+#include "aegis/common/geo_utils.hpp"
 
 int main() {
     std::cout << "[RUN] Unit Test: test_common_geo" << std::endl;

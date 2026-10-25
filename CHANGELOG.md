@@ -4,6 +4,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Changed
+- Cleaned up include hierarchy and build configuration before Phase 4:
+  - Removed 18 obsolete Phase 1 placeholder header files from `src/` to eliminate shadowing of public API in `include/aegis/`.
+  - Preserved internal socket loopback header `src/network/socket_loopback.hpp`.
+  - Migrated `tests/unit/test_common_geo.cpp` to include `"aegis/common/geo_utils.hpp"` instead of relative path to `src/`.
+  - Removed `${CMAKE_CURRENT_SOURCE_DIR}/src` from global include directories in root `CMakeLists.txt` and removed `-Isrc` from `Makefile`.
+  - Added private include path for `aegis_network` target to encapsulate internal headers.
+  - Fixed argument handling in `scripts/build.sh` so both `./scripts/build.sh test` and `./scripts/build.sh <type> test` trigger automated test execution.
+
 ### Added
 - Complete Phase 3: Coordinator Core (`aegis_coordinator` and `aegis_route_planner`) in modern C++17:
   1. `CentralCoordinator` (`Coordinator`): Master dispatch orchestrator uniting call intake, fleet tracking, route planning, dynamic green corridor preemption, and MQTT telemetry broadcast.
