@@ -14,15 +14,23 @@ namespace config {
 
 bool NodeConfigLoader::LoadFromFile(const std::string& filePath, NodeConfig& outConfig) {
     std::ifstream file(filePath);
-    std::cout << "Trying to open: " << filePath << std::endl;
-    std::cout << "is_open = " << file.is_open() << std::endl;
+    if (!file.is_open()) {
+        // Fallback for paths starting with ../ when running from repo root
+        if (filePath.rfind("../", 0) == 0) {
+            file.open(filePath.substr(3));
+        }
+        // Fallback for paths starting with config/ when running from build/
+        else if (filePath.rfind("config/", 0) == 0) {
+            file.open("../" + filePath);
+        }
+    }
+
     if (!file.is_open()) {
         return false;
     }
 
     std::stringstream buffer;
     buffer << file.rdbuf();
-    std::cout << "JSON:\n" << buffer.str() << std::endl;
     file.close();
 
     return LoadFromString(buffer.str(), outConfig);
