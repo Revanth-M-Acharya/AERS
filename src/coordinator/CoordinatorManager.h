@@ -30,6 +30,20 @@ namespace aegis {
 namespace coordinator {
 
 /**
+ * @brief Runtime telemetry and connection status record for a network node.
+ */
+struct ConnectedNodeInfo {
+    std::string nodeId{""};                  ///< Unique node identifier (e.g., "INT_A", "AMB_01")
+    std::string role{"Unknown"};             ///< Role (e.g., "Intersection", "Ambulance", "Hospital")
+    std::string ipAddress{""};               ///< Remote IPv4 address of the node
+    uint16_t port{0};                        ///< Remote port number
+    std::string connectionStatus{"OFFLINE"}; ///< Current connection state: "ONLINE" or "OFFLINE"
+    uint64_t lastHeartbeatTimestamp{0};      ///< Epoch timestamp (ms) of the most recent heartbeat
+    int clientId{-1};                         ///< Connected socket client ID (-1 if disconnected)
+    bool everRegistered{false};              ///< Latch indicating node has successfully registered
+};
+
+/**
  * @brief Central manager governing coordinator foundation subsystems.
  */
 class CoordinatorManager {
@@ -222,12 +236,44 @@ public:
      */
     size_t ProcessPendingEvents(size_t maxEvents = 0);
 
+    // =========================================================================
+    // Node Monitoring & Diagnostics (Phase 5A)
+    // =========================================================================
+
+    /**
+     * @brief Retrieve snapshot list of all tracked nodes in the in-memory table.
+     * @return Vector containing all connected node telemetry records in deterministic order.
+     */
+    std::vector<ConnectedNodeInfo> GetConnectedNodes() const;
+
+    /**
+     * @brief Retrieve telemetry record for a specific node by ID.
+     * @param nodeId Unique identifier of the node.
+     * @param outInfo Populated with node telemetry if found.
+     * @return true if node exists in table; false otherwise.
+     */
+    bool GetConnectedNodeInfo(const std::string& nodeId, ConnectedNodeInfo& outInfo) const;
+
+    /**
+     * @brief Get formatted string representation of the current network state.
+     */
+    std::string GetNetworkStatusString() const;
+
+    /**
+     * @brief Print current network state to standard output.
+     */
+    void PrintNetworkStatus() const;
+
 private:
     void DispatchWorkerLoop();
     void DispatchEvent(const CoordinatorEvent& event);
     void HandleRegister(int clientId, const communication::Message& msg);
     void HandleHeartbeat(int clientId, const communication::Message& msg);
     void HandleSignalStatus(int clientId, const communication::Message& msg);
+
+    static std::string DetermineRoleFromNodeId(const std::string& nodeId);
+    static std::string NormalizeRole(const std::string& rawRole, const std::string& nodeId);
+    static std::string ExtractNodeRole(const std::string& nodeId, const std::string& payload);
 
     // Owned subsystems
     IntersectionRegistry m_intersectionRegistry{};
@@ -246,7 +292,19 @@ private:
     mutable std::mutex m_handlersMutex{};
     std::unordered_map<communication::MessageType, MessageHandler> m_customHandlers{};
     EventHook m_eventHook{nullptr};
+
+    // Phase 5A In-Memory Node Table & Diagnostics
+    mutable std::mutex m_nodeTableMutex{};
+    std::unordered_map<std::string, ConnectedNodeInfo> m_connectedNodes{};
+    std::vector<std::string> m_nodeDisplayOrder{};
+    std::unordered_map<int, std::string> m_clientIdToNodeId{};
 };
+
+/**
+ * @brief Helper function that prints the current network state to standard output.
+ * @param coordinator CoordinatorManager instance to inspect.
+ */
+void PrintNetworkStatus(const CoordinatorManager& coordinator);
 
 } // namespace coordinator
 } // namespace aegis

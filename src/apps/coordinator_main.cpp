@@ -53,6 +53,7 @@ int main(int argc, char* argv[]) {
     }
 
     std::cout << "[READY] Central Coordinator listening for Intersection Nodes..." << std::endl;
+    coordinator.PrintNetworkStatus();
 
     while (!g_shutdownRequested.load()) {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));

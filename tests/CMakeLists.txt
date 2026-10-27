@@ -190,6 +190,16 @@ target_link_libraries(test_phase8_intelligent_scheduler PRIVATE
 )
 add_test(NAME test_phase8_intelligent_scheduler COMMAND test_phase8_intelligent_scheduler)
 
+add_executable(test_coordinator_monitoring unit/test_coordinator_monitoring.cpp)
+target_link_libraries(test_coordinator_monitoring PRIVATE
+    aegis_coordinator
+    aegis_communication
+    aegis_common
+    aegis_logger
+    aegis_config
+)
+add_test(NAME test_coordinator_monitoring COMMAND test_coordinator_monitoring)
+
 
 
 

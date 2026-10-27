@@ -538,14 +538,21 @@ The codebase is partitioned into 19 self-contained modules located under `src/`:
 * **Namespace:** `aegis::coordinator`
 * **Header:** `src/coordinator/CoordinatorManager.h`
 * **Source:** `src/coordinator/CoordinatorManager.cpp`
-* **Responsibilities:** Core coordination engine for the Central Coordinator (RPi 1). Manages intersection registrations, constructs dynamic green corridors, processes incoming telemetry, and executes signal preemption commands.
+* **Responsibilities:** Core coordination engine for the Central Coordinator (RPi 1). Manages intersection registrations, maintains an in-memory table of connected nodes, provides live console observability (`[CONNECT]`, `[REGISTER]`, `[HEARTBEAT]`, `[DISCONNECT]`, `[RECONNECT]`), constructs dynamic green corridors, processes incoming telemetry, and executes signal preemption commands.
+* **Key Structures & Types:**
+  * `struct ConnectedNodeInfo`: In-memory tracking record containing `nodeId`, `role`, `ipAddress`, `port`, `connectionStatus` (`"ONLINE"`/`"OFFLINE"`), `lastHeartbeatTimestamp`, `clientId`, and `everRegistered`.
 * **Key Methods:**
-  * `bool Start(uint16_t port)`: Initializes `SocketServer` on the specified TCP port and starts the event worker thread.
-  * `void Stop()`: Halts server listeners, clears active corridors, and disconnects clients cleanly.
-  * `bool RegisterIntersection(const std::string& id, const std::string& ip, uint16_t port)`: Adds an intersection to the active registry.
-  * `bool CreateCorridor(const std::string& corridorId, const std::string& ambId, const std::vector<std::string>& intersections)`: Instantiates a new green wave corridor.
-  * `bool AdvanceCorridor(const std::string& corridorId)`: Preempts the next intersection along the route and releases the previous one.
-  * `void ProcessMessage(const communication::Message& msg)`: Decodes and routes edge packets (`REGISTRATION`, `HEARTBEAT`, `STATUS_UPDATE`).
+  * `bool Start(uint16_t port, const std::string& host)`: Initializes `SocketServer` on the specified TCP port and host interface, starts the event worker thread.
+  * `void Stop()`: Halts server listeners, clears active corridors, transitions in-memory nodes to `OFFLINE`, and disconnects clients cleanly.
+  * `std::vector<ConnectedNodeInfo> GetConnectedNodes() const`: Returns ordered snapshot of tracked network nodes (`INT_A`, `INT_B`, `INT_C`, `AMB_01`, `HOSPITAL`, etc.).
+  * `bool GetConnectedNodeInfo(const std::string& nodeId, ConnectedNodeInfo& outInfo) const`: Queries telemetry record for a specific node.
+  * `std::string GetNetworkStatusString() const`: Generates formatted network state table.
+  * `void PrintNetworkStatus() const`: Prints the formatted network state table to standard output.
+  * `void PrintNetworkStatus(const CoordinatorManager& coordinator)`: Free helper function for network observability.
+  * `bool CreateCorridor(const std::string& corridorId, const std::vector<std::string>& intersections)`: Instantiates a new green wave corridor.
+  * `bool ActivateCorridor()`: Generates preemption green commands for active intersection and red commands for down-path intersections.
+  * `bool AdvanceCorridor()`: Preempts the next intersection along the route and resets previous to normal or red.
+  * `bool CompleteCorridor()` / `CancelCorridor()`: Concludes or cancels corridor, restoring normal phasing across all route junctions.
 * **Lifecycle:** Instantiated at daemon startup; persists throughout coordinator execution.
 
 ### 7.2 `IntersectionNode`

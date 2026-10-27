@@ -4,7 +4,11 @@
  */
 
 #include "CoordinatorManager.h"
+#include "aegis/common/json_helper.hpp"
 #include <iostream>
+#include <iomanip>
+#include <sstream>
+#include <algorithm>
 
 namespace aegis {
 namespace coordinator {
@@ -18,7 +22,17 @@ CoordinatorManager::CoordinatorManager()
     , m_trafficCommandManager("COORDINATOR")
     , m_commandsMutex()
     , m_generatedCommands()
-    , m_running(false) {
+    , m_running(false)
+    , m_nodeTableMutex()
+    , m_connectedNodes()
+    , m_nodeDisplayOrder()
+    , m_clientIdToNodeId() {
+    m_nodeDisplayOrder = {"INT_A", "INT_B", "INT_C", "AMB_01", "HOSPITAL"};
+    m_connectedNodes["INT_A"] = ConnectedNodeInfo{"INT_A", "Intersection", "", 0, "OFFLINE", 0, -1, false};
+    m_connectedNodes["INT_B"] = ConnectedNodeInfo{"INT_B", "Intersection", "", 0, "OFFLINE", 0, -1, false};
+    m_connectedNodes["INT_C"] = ConnectedNodeInfo{"INT_C", "Intersection", "", 0, "OFFLINE", 0, -1, false};
+    m_connectedNodes["AMB_01"] = ConnectedNodeInfo{"AMB_01", "Ambulance", "", 0, "OFFLINE", 0, -1, false};
+    m_connectedNodes["HOSPITAL"] = ConnectedNodeInfo{"HOSPITAL", "Hospital", "", 0, "OFFLINE", 0, -1, false};
 }
 
 CoordinatorManager::~CoordinatorManager() {
@@ -38,6 +52,9 @@ CoordinatorManager::CoordinatorManager(CoordinatorManager&& other) noexcept {
     m_generatedCommands = std::move(other.m_generatedCommands);
     m_customHandlers = std::move(other.m_customHandlers);
     m_eventHook = std::move(other.m_eventHook);
+    m_connectedNodes = std::move(other.m_connectedNodes);
+    m_nodeDisplayOrder = std::move(other.m_nodeDisplayOrder);
+    m_clientIdToNodeId = std::move(other.m_clientIdToNodeId);
 }
 
 CoordinatorManager& CoordinatorManager::operator=(CoordinatorManager&& other) noexcept {
@@ -54,6 +71,9 @@ CoordinatorManager& CoordinatorManager::operator=(CoordinatorManager&& other) no
         m_generatedCommands = std::move(other.m_generatedCommands);
         m_customHandlers = std::move(other.m_customHandlers);
         m_eventHook = std::move(other.m_eventHook);
+        m_connectedNodes = std::move(other.m_connectedNodes);
+        m_nodeDisplayOrder = std::move(other.m_nodeDisplayOrder);
+        m_clientIdToNodeId = std::move(other.m_clientIdToNodeId);
     }
     return *this;
 }
@@ -127,6 +147,15 @@ void CoordinatorManager::Stop() {
         m_intersectionRegistry.SetOnlineStatus(entry.intersectionId, false);
         m_intersectionState.SetOffline(entry.intersectionId);
     }
+
+    {
+        std::lock_guard<std::mutex> lock(m_nodeTableMutex);
+        for (auto& pair : m_connectedNodes) {
+            pair.second.connectionStatus = "OFFLINE";
+            pair.second.clientId = -1;
+        }
+        m_clientIdToNodeId.clear();
+    }
 }
 
 bool CoordinatorManager::IsRunning() const noexcept {
@@ -163,11 +192,37 @@ void CoordinatorManager::DispatchEvent(const CoordinatorEvent& event) {
     }
 
     switch (event.type) {
+        case CoordinatorEventType::CLIENT_CONNECTED: {
+            std::cout << "[CONNECT] Intersection node connected from " << event.details << std::endl;
+            break;
+        }
+
         case CoordinatorEventType::CLIENT_DISCONNECTED: {
-            std::string intersectionId;
-            if (m_intersectionRegistry.FindByClientId(event.clientId, intersectionId)) {
-                m_intersectionRegistry.SetOnlineStatus(intersectionId, false);
-                m_intersectionState.SetOffline(intersectionId);
+            std::string nodeId;
+            {
+                std::lock_guard<std::mutex> lock(m_nodeTableMutex);
+                auto it = m_clientIdToNodeId.find(event.clientId);
+                if (it != m_clientIdToNodeId.end()) {
+                    nodeId = it->second;
+                    m_clientIdToNodeId.erase(it);
+                }
+            }
+            if (nodeId.empty()) {
+                m_intersectionRegistry.FindByClientId(event.clientId, nodeId);
+            }
+
+            if (!nodeId.empty()) {
+                m_intersectionRegistry.SetOnlineStatus(nodeId, false);
+                m_intersectionState.SetOffline(nodeId);
+                {
+                    std::lock_guard<std::mutex> lock(m_nodeTableMutex);
+                    auto it = m_connectedNodes.find(nodeId);
+                    if (it != m_connectedNodes.end()) {
+                        it->second.connectionStatus = "OFFLINE";
+                        it->second.clientId = -1;
+                    }
+                }
+                std::cout << "[DISCONNECT] " << nodeId << " disconnected" << std::endl;
             }
             break;
         }
@@ -209,8 +264,8 @@ void CoordinatorManager::DispatchEvent(const CoordinatorEvent& event) {
 }
 
 void CoordinatorManager::HandleRegister(int clientId, const communication::Message& msg) {
-    const std::string& intersectionId = msg.GetSenderId();
-    if (intersectionId.empty()) {
+    const std::string& nodeId = msg.GetSenderId();
+    if (nodeId.empty()) {
         return;
     }
 
@@ -219,9 +274,9 @@ void CoordinatorManager::HandleRegister(int clientId, const communication::Messa
     m_socketServer.GetClientInfo(clientId, ip, port);
 
     // Register node in registry and state tracker
-    m_intersectionRegistry.RegisterIntersection(intersectionId, ip, port, clientId);
-    m_intersectionState.RegisterIntersection(intersectionId);
-    m_intersectionState.SetOnline(intersectionId, msg.GetTimestamp());
+    m_intersectionRegistry.RegisterIntersection(nodeId, ip, port, clientId);
+    m_intersectionState.RegisterIntersection(nodeId);
+    m_intersectionState.SetOnline(nodeId, msg.GetTimestamp());
 
     // Send ACK back to the intersection node
     communication::Message ackMsg(communication::MessageType::ACK,
@@ -229,23 +284,103 @@ void CoordinatorManager::HandleRegister(int clientId, const communication::Messa
                                   "REGISTER_OK",
                                   communication::Message::CurrentTimestampMs());
     m_socketServer.SendToClient(clientId, ackMsg);
+
+    std::string role = ExtractNodeRole(nodeId, msg.GetPayload());
+
+    bool isReconnect = false;
+    {
+        std::lock_guard<std::mutex> lock(m_nodeTableMutex);
+        auto it = m_connectedNodes.find(nodeId);
+        if (it != m_connectedNodes.end()) {
+            if (it->second.everRegistered && it->second.connectionStatus == "OFFLINE") {
+                isReconnect = true;
+            }
+            it->second.role = role;
+            it->second.ipAddress = ip;
+            it->second.port = port;
+            it->second.connectionStatus = "ONLINE";
+            it->second.lastHeartbeatTimestamp = (msg.GetTimestamp() > 0) ? msg.GetTimestamp() : communication::Message::CurrentTimestampMs();
+            it->second.clientId = clientId;
+            it->second.everRegistered = true;
+        } else {
+            ConnectedNodeInfo info;
+            info.nodeId = nodeId;
+            info.role = role;
+            info.ipAddress = ip;
+            info.port = port;
+            info.connectionStatus = "ONLINE";
+            info.lastHeartbeatTimestamp = (msg.GetTimestamp() > 0) ? msg.GetTimestamp() : communication::Message::CurrentTimestampMs();
+            info.clientId = clientId;
+            info.everRegistered = true;
+            m_connectedNodes[nodeId] = info;
+            m_nodeDisplayOrder.push_back(nodeId);
+        }
+        m_clientIdToNodeId[clientId] = nodeId;
+    }
+
+    if (isReconnect) {
+        std::cout << "[RECONNECT] " << nodeId << " reconnected" << std::endl;
+    }
+
+    std::cout << "[REGISTER] Node " << nodeId << " (" << role << ") registered successfully" << std::endl;
 }
 
 void CoordinatorManager::HandleHeartbeat(int clientId, const communication::Message& msg) {
-    const std::string& intersectionId = msg.GetSenderId();
-    if (!intersectionId.empty()) {
-        m_intersectionRegistry.UpdateHeartbeat(intersectionId, msg.GetTimestamp());
-        m_intersectionRegistry.AssociateClientId(intersectionId, clientId);
-        m_intersectionState.SetOnline(intersectionId, msg.GetTimestamp());
+    const std::string& nodeId = msg.GetSenderId();
+    if (nodeId.empty()) {
+        return;
     }
+
+    m_intersectionRegistry.UpdateHeartbeat(nodeId, msg.GetTimestamp());
+    m_intersectionRegistry.AssociateClientId(nodeId, clientId);
+    m_intersectionState.SetOnline(nodeId, msg.GetTimestamp());
+
+    bool isReconnect = false;
+    {
+        std::lock_guard<std::mutex> lock(m_nodeTableMutex);
+        auto it = m_connectedNodes.find(nodeId);
+        if (it != m_connectedNodes.end()) {
+            if (it->second.everRegistered && it->second.connectionStatus == "OFFLINE") {
+                isReconnect = true;
+            }
+            it->second.connectionStatus = "ONLINE";
+            it->second.lastHeartbeatTimestamp = (msg.GetTimestamp() > 0) ? msg.GetTimestamp() : communication::Message::CurrentTimestampMs();
+            it->second.clientId = clientId;
+        } else {
+            ConnectedNodeInfo info;
+            info.nodeId = nodeId;
+            info.role = DetermineRoleFromNodeId(nodeId);
+            info.connectionStatus = "ONLINE";
+            info.lastHeartbeatTimestamp = (msg.GetTimestamp() > 0) ? msg.GetTimestamp() : communication::Message::CurrentTimestampMs();
+            info.clientId = clientId;
+            info.everRegistered = true;
+            m_connectedNodes[nodeId] = info;
+            m_nodeDisplayOrder.push_back(nodeId);
+        }
+        m_clientIdToNodeId[clientId] = nodeId;
+    }
+
+    if (isReconnect) {
+        std::cout << "[RECONNECT] " << nodeId << " reconnected" << std::endl;
+    }
+
+    std::cout << "[HEARTBEAT] " << nodeId << " alive" << std::endl;
 }
 
 void CoordinatorManager::HandleSignalStatus(int clientId, const communication::Message& msg) {
-    const std::string& intersectionId = msg.GetSenderId();
-    if (!intersectionId.empty()) {
-        m_intersectionRegistry.UpdateHeartbeat(intersectionId, msg.GetTimestamp());
-        m_intersectionRegistry.AssociateClientId(intersectionId, clientId);
-        m_intersectionState.SetOnline(intersectionId, msg.GetTimestamp());
+    const std::string& nodeId = msg.GetSenderId();
+    if (!nodeId.empty()) {
+        m_intersectionRegistry.UpdateHeartbeat(nodeId, msg.GetTimestamp());
+        m_intersectionRegistry.AssociateClientId(nodeId, clientId);
+        m_intersectionState.SetOnline(nodeId, msg.GetTimestamp());
+
+        std::lock_guard<std::mutex> lock(m_nodeTableMutex);
+        auto it = m_connectedNodes.find(nodeId);
+        if (it != m_connectedNodes.end()) {
+            it->second.connectionStatus = "ONLINE";
+            it->second.lastHeartbeatTimestamp = (msg.GetTimestamp() > 0) ? msg.GetTimestamp() : communication::Message::CurrentTimestampMs();
+            it->second.clientId = clientId;
+        }
     }
 }
 
@@ -435,6 +570,118 @@ size_t CoordinatorManager::ProcessPendingEvents(size_t maxEvents) {
         processed++;
     }
     return processed;
+}
+
+std::string CoordinatorManager::DetermineRoleFromNodeId(const std::string& nodeId) {
+    if (nodeId.rfind("INT", 0) == 0) {
+        return "Intersection";
+    }
+    if (nodeId.rfind("AMB", 0) == 0) {
+        return "Ambulance";
+    }
+    if (nodeId.rfind("HOSP", 0) == 0) {
+        return "Hospital";
+    }
+    if (nodeId.rfind("COORD", 0) == 0) {
+        return "Coordinator";
+    }
+    return "Node";
+}
+
+std::string CoordinatorManager::NormalizeRole(const std::string& rawRole, const std::string& nodeId) {
+    if (rawRole.empty()) {
+        return DetermineRoleFromNodeId(nodeId);
+    }
+    if (rawRole == "INTERSECTION" || rawRole == "intersection" || rawRole == "Intersection") {
+        return "Intersection";
+    }
+    if (rawRole == "AMBULANCE" || rawRole == "ambulance" || rawRole == "Ambulance") {
+        return "Ambulance";
+    }
+    if (rawRole == "HOSPITAL" || rawRole == "hospital" || rawRole == "Hospital") {
+        return "Hospital";
+    }
+    if (rawRole == "COORDINATOR" || rawRole == "coordinator" || rawRole == "Coordinator") {
+        return "Coordinator";
+    }
+    return rawRole;
+}
+
+std::string CoordinatorManager::ExtractNodeRole(const std::string& nodeId, const std::string& payload) {
+    // 1. Try JSON extraction for "role"
+    auto roleOpt = common::JsonHelper::ExtractString(payload, "role");
+    if (roleOpt.has_value() && !roleOpt.value().empty()) {
+        return NormalizeRole(roleOpt.value(), nodeId);
+    }
+
+    // 2. Try JSON extraction for "nodeType"
+    auto typeOpt = common::JsonHelper::ExtractString(payload, "nodeType");
+    if (typeOpt.has_value() && !typeOpt.value().empty()) {
+        return NormalizeRole(typeOpt.value(), nodeId);
+    }
+
+    // 3. Try text heuristics in payload
+    if (payload.find("AMBULANCE") != std::string::npos || payload.find("ambulance") != std::string::npos) {
+        return "Ambulance";
+    }
+    if (payload.find("INTERSECTION") != std::string::npos || payload.find("intersection") != std::string::npos) {
+        return "Intersection";
+    }
+    if (payload.find("HOSPITAL") != std::string::npos || payload.find("hospital") != std::string::npos) {
+        return "Hospital";
+    }
+
+    // 4. Default role by node ID prefix
+    return DetermineRoleFromNodeId(nodeId);
+}
+
+std::vector<ConnectedNodeInfo> CoordinatorManager::GetConnectedNodes() const {
+    std::lock_guard<std::mutex> lock(m_nodeTableMutex);
+    std::vector<ConnectedNodeInfo> result;
+    result.reserve(m_nodeDisplayOrder.size());
+    for (const auto& id : m_nodeDisplayOrder) {
+        auto it = m_connectedNodes.find(id);
+        if (it != m_connectedNodes.end()) {
+            result.push_back(it->second);
+        }
+    }
+    return result;
+}
+
+bool CoordinatorManager::GetConnectedNodeInfo(const std::string& nodeId, ConnectedNodeInfo& outInfo) const {
+    std::lock_guard<std::mutex> lock(m_nodeTableMutex);
+    auto it = m_connectedNodes.find(nodeId);
+    if (it != m_connectedNodes.end()) {
+        outInfo = it->second;
+        return true;
+    }
+    return false;
+}
+
+std::string CoordinatorManager::GetNetworkStatusString() const {
+    std::lock_guard<std::mutex> lock(m_nodeTableMutex);
+    std::ostringstream oss;
+    oss << "==============================\n";
+    oss << "AERS NETWORK STATUS\n";
+    oss << "Coordinator : " << (m_running.load() ? "ONLINE" : "OFFLINE") << "\n\n";
+    oss << "Connected Nodes\n";
+    oss << "------------------------------------\n";
+    for (const auto& nodeId : m_nodeDisplayOrder) {
+        auto it = m_connectedNodes.find(nodeId);
+        std::string status = (it != m_connectedNodes.end()) ? it->second.connectionStatus : "OFFLINE";
+        size_t width = std::max<size_t>(9, nodeId.length() + 1);
+        oss << std::left << std::setw(static_cast<int>(width)) << nodeId << status << "\n";
+    }
+    oss << "------------------------------------\n";
+    return oss.str();
+}
+
+void CoordinatorManager::PrintNetworkStatus() const {
+    std::cout << GetNetworkStatusString();
+}
+
+void PrintNetworkStatus(const CoordinatorManager& coordinator) {
+    coordinator.PrintNetworkStatus();
 }
 
 } // namespace coordinator
