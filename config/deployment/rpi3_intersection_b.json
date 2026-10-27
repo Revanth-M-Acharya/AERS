@@ -1,0 +1,12 @@
+{
+  "nodeId": "INT_B",
+  "role": "Intersection",
+  "ipAddress": "192.168.1.103",
+  "port": 9002,
+  "coordinatorIp": "192.168.1.101",
+  "coordinatorPort": 9000,
+  "heartbeatIntervalMs": 1000,
+  "connectTimeoutMs": 3000,
+  "ackTimeoutMs": 3000,
+  "autoReconnect": true
+}

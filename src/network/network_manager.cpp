@@ -1,3 +1,8 @@
+/**
+ * @file network_manager.cpp
+ * @brief Implementation of unified NetworkManager facade.
+ */
+
 #include "aegis/network/network_manager.hpp"
 
 namespace aegis {
@@ -10,12 +15,28 @@ NetworkManager::NetworkManager()
       m_v2xClient(std::make_unique<SocketClient>()),
       m_v2xServer(std::make_unique<SocketServer>()) {}
 
+NetworkManager::NetworkManager(std::unique_ptr<IMqttTransport> transport)
+    : m_mqtt(std::make_unique<MqttClient>(std::move(transport))),
+      m_auth(std::make_unique<AuthenticationManager>()),
+      m_heartbeat(std::make_unique<HeartbeatManager>("AEGIS_NODE")),
+      m_v2xClient(std::make_unique<SocketClient>()),
+      m_v2xServer(std::make_unique<SocketServer>()) {}
+
 NetworkManager::~NetworkManager() = default;
 
 bool NetworkManager::Initialize(const std::string& host, int port, bool useTls, const std::string& nodeId) {
     m_heartbeat = std::make_unique<HeartbeatManager>(nodeId);
     m_mqtt->SetClientId(nodeId);
     return m_mqtt->Connect(host, port, useTls);
+}
+
+bool NetworkManager::InitializeWithTransport(std::unique_ptr<IMqttTransport> transport,
+                                             const std::string& host, int port, bool useTls,
+                                             const std::string& nodeId) {
+    if (transport) {
+        m_mqtt->SetTransport(std::move(transport));
+    }
+    return Initialize(host, port, useTls, nodeId);
 }
 
 void NetworkManager::Shutdown() {
@@ -63,6 +84,10 @@ bool NetworkManager::IsConnected() const noexcept {
 }
 
 MqttClient& NetworkManager::GetMqttClient() {
+    return *m_mqtt;
+}
+
+const MqttClient& NetworkManager::GetMqttClient() const {
     return *m_mqtt;
 }
 

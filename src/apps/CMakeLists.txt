@@ -1,14 +1,27 @@
 # Executable Targets
 
-# Coordinator Daemon
-add_executable(aegis_coordinator_app coordinator_main.cpp)
-target_link_libraries(aegis_coordinator_app PRIVATE
+# Central Coordinator Daemon (Raspberry Pi 1 / QNX RTOS)
+add_executable(aegis_coordinator coordinator_main.cpp)
+target_include_directories(aegis_coordinator PRIVATE ${CMAKE_SOURCE_DIR}/src ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(aegis_coordinator PRIVATE
     aegis_coordinator
+    aegis_communication
     aegis_route_planner
     aegis_priority_scheduler
     aegis_network
     aegis_logger
     aegis_config
+    aegis_common
+)
+
+# Intersection Node Daemon (Raspberry Pis 2, 3, 4)
+add_executable(aegis_intersection_node intersection_main.cpp)
+target_include_directories(aegis_intersection_node PRIVATE ${CMAKE_SOURCE_DIR}/src ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(aegis_intersection_node PRIVATE
+    aegis_intersection
+    aegis_communication
+    aegis_config
+    aegis_logger
     aegis_common
 )
 

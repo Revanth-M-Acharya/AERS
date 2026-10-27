@@ -6,10 +6,21 @@ add_library(aegis_coordinator STATIC
     dispatch_engine.cpp
     dynamic_green_corridor.cpp
     coordinator.cpp
+    EventQueue.cpp
+    IntersectionRegistry.cpp
+    CoordinatorManager.cpp
+    IntersectionState.cpp
+    GreenCorridor.cpp
+    TrafficCommandManager.cpp
 )
-target_include_directories(aegis_coordinator PUBLIC ${CMAKE_SOURCE_DIR}/include)
+target_include_directories(aegis_coordinator PUBLIC 
+    ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}
+)
 target_link_libraries(aegis_coordinator PUBLIC
     aegis_common
+    aegis_communication
     aegis_route_planner
     aegis_priority_scheduler
     aegis_network

@@ -17,6 +17,9 @@
 #include "aegis/network/socket_server.hpp"
 #include "aegis/network/mqtt_client.hpp"
 #include "aegis/network/network_manager.hpp"
+#include "aegis/network/topics.hpp"
+#include "aegis/network/simulation_transport.hpp"
+#include "aegis/network/mosquitto_transport.hpp"
 
 #define AEGIS_TEST_ASSERT(cond) \
     do { \
@@ -626,6 +629,120 @@ static void TestNetworkManagerFacade() {
     std::cout << "PASSED" << std::endl;
 }
 
+static void TestSimulationTransportDirect() {
+    std::cout << "[TEST] 10. SimulationTransport Direct Operation & Parity... ";
+
+    SimulationTransport transport;
+    AEGIS_TEST_ASSERT(transport.GetType() == TransportType::SIMULATION);
+    AEGIS_TEST_ASSERT(transport.GetName() == "SimulationTransport");
+
+    int receivedCount = 0;
+    std::string lastPayload;
+    transport.Subscribe("aegis/fleet/+/status", [&](const std::string&, const std::string& payload) {
+        receivedCount++;
+        lastPayload = payload;
+    });
+
+    AEGIS_TEST_ASSERT(transport.Connect("127.0.0.1", 1883, false));
+    AEGIS_TEST_ASSERT(transport.IsConnected());
+
+    // Publish online
+    AEGIS_TEST_ASSERT(transport.Publish("aegis/fleet/AMB-01/status", "ONLINE", 1));
+    AEGIS_TEST_ASSERT(receivedCount == 1);
+    AEGIS_TEST_ASSERT(lastPayload == "ONLINE");
+
+    // Offline buffering
+    transport.Disconnect();
+    AEGIS_TEST_ASSERT(!transport.IsConnected());
+    AEGIS_TEST_ASSERT(!transport.Publish("aegis/fleet/AMB-01/status", "QUEUED_MSG", 1));
+    AEGIS_TEST_ASSERT(transport.GetBufferedMessageCount() == 1);
+
+    // Reconnect flushes buffer
+    AEGIS_TEST_ASSERT(transport.Reconnect());
+    AEGIS_TEST_ASSERT(transport.IsConnected());
+    AEGIS_TEST_ASSERT(transport.GetBufferedMessageCount() == 0);
+    AEGIS_TEST_ASSERT(receivedCount == 2);
+    AEGIS_TEST_ASSERT(lastPayload == "QUEUED_MSG");
+
+    std::cout << "PASSED" << std::endl;
+}
+
+static void TestTopicSchemaConsistency() {
+    std::cout << "[TEST] 11. Unified Topic Schema Consistency & Matching... ";
+
+    // 1. Exact string matches
+    AEGIS_TEST_ASSERT(topics::IntersectionCommands("INT-42") == "aegis/intersection/INT-42/commands");
+    AEGIS_TEST_ASSERT(topics::IntersectionStatus("INT-42") == "aegis/intersection/INT-42/status");
+    AEGIS_TEST_ASSERT(topics::FleetLocation("AMB-07") == "aegis/fleet/AMB-07/location");
+    AEGIS_TEST_ASSERT(topics::FleetVitals("AMB-07") == "aegis/fleet/AMB-07/vitals");
+    AEGIS_TEST_ASSERT(topics::FleetAlarms("AMB-07") == "aegis/fleet/AMB-07/alarms");
+    AEGIS_TEST_ASSERT(topics::FleetHeartbeat("AMB-07") == "aegis/fleet/AMB-07/heartbeat");
+    AEGIS_TEST_ASSERT(topics::FleetState("AMB-07") == "aegis/fleet/AMB-07/state");
+    AEGIS_TEST_ASSERT(topics::HospitalCommands("AMB-07") == "aegis/hospital/AMB-07/commands");
+    AEGIS_TEST_ASSERT(topics::EMERGENCY_REQUEST == "aegis/emergency/request");
+    AEGIS_TEST_ASSERT(topics::IncidentDispatched("INC-99") == "aegis/incident/INC-99/dispatched");
+
+    // 2. Wildcard pattern validation
+    AEGIS_TEST_ASSERT(MessageRouter::MatchTopic(topics::ALL_INTERSECTION_COMMANDS, topics::IntersectionCommands("INT-42")));
+    AEGIS_TEST_ASSERT(MessageRouter::MatchTopic(topics::ALL_INTERSECTION_STATUS, topics::IntersectionStatus("INT-42")));
+    AEGIS_TEST_ASSERT(MessageRouter::MatchTopic(topics::ALL_FLEET_LOCATION, topics::FleetLocation("AMB-07")));
+    AEGIS_TEST_ASSERT(MessageRouter::MatchTopic(topics::ALL_FLEET_VITALS, topics::FleetVitals("AMB-07")));
+    AEGIS_TEST_ASSERT(MessageRouter::MatchTopic(topics::ALL_FLEET_ALARMS, topics::FleetAlarms("AMB-07")));
+    AEGIS_TEST_ASSERT(MessageRouter::MatchTopic(topics::ALL_FLEET_HEARTBEAT, topics::FleetHeartbeat("AMB-07")));
+    AEGIS_TEST_ASSERT(MessageRouter::MatchTopic(topics::ALL_FLEET_STATE, topics::FleetState("AMB-07")));
+    AEGIS_TEST_ASSERT(MessageRouter::MatchTopic(topics::ALL_HOSPITAL_COMMANDS, topics::HospitalCommands("AMB-07")));
+
+    std::cout << "PASSED" << std::endl;
+}
+
+static void TestTransportInterchangeability() {
+    std::cout << "[TEST] 12. Transport Swapping & MosquittoTransport Parity... ";
+
+    // 1. Verify MqttClient defaults to SimulationTransport
+    MqttClient client;
+    AEGIS_TEST_ASSERT(client.GetTransportType() == TransportType::SIMULATION);
+
+    // 2. Dynamically swap to MosquittoTransport
+    client.SetTransport(std::make_unique<MosquittoTransport>());
+    AEGIS_TEST_ASSERT(client.GetTransportType() == TransportType::MOSQUITTO);
+    AEGIS_TEST_ASSERT(client.GetTransport()->GetName() == "MosquittoTransport");
+
+    // 3. Verify MosquittoTransport pub/sub lifecycle
+    int mosqReceived = 0;
+    std::string mosqPayload;
+    client.Subscribe("aegis/intersection/+/commands", [&](const std::string&, const std::string& p) {
+        mosqReceived++;
+        mosqPayload = p;
+    });
+
+    AEGIS_TEST_ASSERT(client.Connect("192.168.1.100", 1883, false));
+    AEGIS_TEST_ASSERT(client.IsConnected());
+
+    AEGIS_TEST_ASSERT(client.Publish("aegis/intersection/INT-01/commands", "PREEMPT", 1));
+    AEGIS_TEST_ASSERT(mosqReceived == 1);
+    AEGIS_TEST_ASSERT(mosqPayload == "PREEMPT");
+
+    // 4. Offline buffering on MosquittoTransport
+    client.Disconnect();
+    AEGIS_TEST_ASSERT(!client.IsConnected());
+    AEGIS_TEST_ASSERT(!client.Publish("aegis/intersection/INT-01/commands", "CLEAR", 1));
+    AEGIS_TEST_ASSERT(client.GetBufferedMessageCount() == 1);
+
+    AEGIS_TEST_ASSERT(client.Reconnect());
+    AEGIS_TEST_ASSERT(client.IsConnected());
+    AEGIS_TEST_ASSERT(client.GetBufferedMessageCount() == 0);
+    AEGIS_TEST_ASSERT(mosqReceived == 2);
+    AEGIS_TEST_ASSERT(mosqPayload == "CLEAR");
+
+    // 5. Test NetworkManager initialization with interchangeable transport
+    NetworkManager netMgr(std::make_unique<MosquittoTransport>());
+    AEGIS_TEST_ASSERT(netMgr.GetMqttClient().GetTransportType() == TransportType::MOSQUITTO);
+    AEGIS_TEST_ASSERT(netMgr.Initialize("192.168.1.100", 1883, false, "COORD-PROD"));
+    AEGIS_TEST_ASSERT(netMgr.IsConnected());
+
+    std::cout << "PASSED" << std::endl;
+}
+
 int main() {
     std::cout << "==========================================================" << std::endl;
     std::cout << " Running SMART AEGIS Communication Infrastructure Test Suite" << std::endl;
@@ -640,9 +757,12 @@ int main() {
     TestSocketCommunication();
     TestMqttClientPubSubAndOfflineBuffering();
     TestNetworkManagerFacade();
+    TestSimulationTransportDirect();
+    TestTopicSchemaConsistency();
+    TestTransportInterchangeability();
 
     std::cout << "==========================================================" << std::endl;
-    std::cout << " All 9 Communication Infrastructure Test Suites Passed! " << std::endl;
+    std::cout << " All 12 Communication Infrastructure Test Suites Passed! " << std::endl;
     std::cout << "==========================================================" << std::endl;
     return 0;
 }

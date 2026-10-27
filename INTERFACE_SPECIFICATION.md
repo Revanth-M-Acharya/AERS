@@ -99,16 +99,17 @@ All central telemetry and commands traversing the wide-area network use MQTT ove
 
 | Topic Hierarchy | Publisher | Subscriber(s) | QoS | Payload Schema | Description |
 |---|---|---|---|---|---|
+| `aegis/intersection/+/commands` | Dynamic Green Corridor, Dashboard | Traffic Signal Node | 1/2 | `IntersectionCommand` | Standardized intersection control (`PREEMPT`, `CLEAR`, `RESTORE`, `HEARTBEAT`, `PING`, `STATUS_REQUEST`). |
+| `aegis/intersection/+/status` | Traffic Signal Node | Coordinator, Dashboard, Municipal GIS | 1 | `IntersectionStatus` | 1 Hz intersection phase & health telemetry with fail-safe status. |
 | `aegis/fleet/+/location` | Ambulance OBU | Route Planner, Dashboards, Corridor Engine | 0 | `GPSUpdate` | 10 Hz real-time kinematic position, speed, and heading. |
 | `aegis/fleet/+/vitals` | Ambulance OBU | Hospital Dashboard, Priority Scheduler | 1 | `VitalsUpdate` | 1 Hz streaming physiological patient vitals (ECG, BP, SpO2). |
 | `aegis/fleet/+/alarms` | Ambulance OBU | Hospital Dashboard, Priority Scheduler | 2 | `HospitalAlert` | Critical patient deterioration alarm (acute arrhythmia, pressure drop). |
 | `aegis/fleet/+/state` | Ambulance OBU / Dispatch | Fleet Manager, Dashboards | 2 | `AmbulanceStateUpdate` | Vehicle operational status transition (`DISPATCHED`, `ARRIVED`, etc.). |
-| `aegis/traffic/+/preempt` | Dynamic Green Corridor | Traffic Signal Controller | 2 | `TrafficPreemptionRequest`| Command to execute safe green corridor preemption. |
-| `aegis/traffic/+/status` | Traffic Controller | Traffic Dashboard, Corridor Engine | 1 | `TrafficStatus` | 1 Hz intersection phase broadcast (Red/Yellow/Green states). |
-| `aegis/traffic/+/override`| Traffic Dashboard | Traffic Signal Controller | 2 | `TrafficPreemptionRequest`| Authenticated manual operator preemption hold/release command. |
-| `aegis/hospital/+/commands`| Hospital Dashboard | Ambulance OBU | 2 | `HospitalCommand` | Pre-arrival clinical instructions from ER trauma physician to crew. |
-| `aegis/dispatch/incidents` | Emergency Call Module | Priority Scheduler, Fleet Manager | 2 | `EmergencyRequest` | Validated emergency distress call requiring ambulance dispatch. |
-| `aegis/system/heartbeat/+` | All Edge Nodes | Safety Monitor | 0 | `Heartbeat` | 5 Hz node health pulse containing CPU, RAM, and state metrics. |
+| `aegis/fleet/+/heartbeat` | Ambulance OBU | Fleet Manager, Dashboards | 0 | `Heartbeat` | 1 Hz vehicle node heartbeat and computing diagnostics. |
+| `aegis/hospital/+/commands` | Hospital Dashboard | Ambulance OBU | 2 | `HospitalCommand` | Pre-arrival clinical instructions from ER trauma physician to crew. |
+| `aegis/emergency/request` | Emergency Call Intake | Central Coordinator, Dispatch | 2 | `EmergencyRequest` | Validated emergency distress call requiring ambulance dispatch. |
+| `aegis/incident/+/dispatched` | Central Coordinator | Fleet Manager, Dashboards | 2 | `EmergencyRequest` | Dispatch confirmation and unit assignment event. |
+| `aegis/system/heartbeat/+` | All Edge Nodes | Safety Monitor | 0 | `Heartbeat` | Periodic node health pulse containing CPU, RAM, and state metrics. |
 | `aegis/system/logs` | All Modules | Central Logging Sink | 1 | `FaultEvent` / LogRecord | Aggregated error reports and audit trail events. |
 
 ---

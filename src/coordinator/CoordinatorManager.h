@@ -1,0 +1,254 @@
+/**
+ * @file CoordinatorManager.h
+ * @brief Core foundation coordinator manager for SMART AEGIS.
+ *
+ * Coordinates system lifecycle, owns fundamental subsystems (IntersectionRegistry,
+ * EventQueue, SocketServer, IntersectionState, GreenCorridor, TrafficCommandManager),
+ * ingests messages from the communication module, and drives the corridor decision engine.
+ */
+
+#ifndef AEGIS_COORDINATOR_COORDINATOR_MANAGER_H
+#define AEGIS_COORDINATOR_COORDINATOR_MANAGER_H
+
+#include "EventQueue.h"
+#include "IntersectionRegistry.h"
+#include "IntersectionState.h"
+#include "GreenCorridor.h"
+#include "TrafficCommandManager.h"
+#include "communication/SocketServer.h"
+#include "communication/Message.h"
+#include <string>
+#include <vector>
+#include <memory>
+#include <atomic>
+#include <thread>
+#include <functional>
+#include <unordered_map>
+#include <mutex>
+
+namespace aegis {
+namespace coordinator {
+
+/**
+ * @brief Central manager governing coordinator foundation subsystems.
+ */
+class CoordinatorManager {
+public:
+    using MessageHandler = std::function<void(int clientId, const communication::Message& message)>;
+    using EventHook      = std::function<void(const CoordinatorEvent& event)>;
+
+    /**
+     * @brief Construct an unstarted CoordinatorManager and instantiate core subsystems.
+     */
+    CoordinatorManager();
+
+    /**
+     * @brief Destructor guarantees clean, orderly shutdown of all owned subsystems.
+     */
+    virtual ~CoordinatorManager();
+
+    // Non-copyable, movable
+    CoordinatorManager(const CoordinatorManager&) = delete;
+    CoordinatorManager& operator=(const CoordinatorManager&) = delete;
+    CoordinatorManager(CoordinatorManager&&) noexcept;
+    CoordinatorManager& operator=(CoordinatorManager&&) noexcept;
+
+    // =========================================================================
+    // Lifecycle Management
+    // =========================================================================
+
+    /**
+     * @brief Start the coordinator network server and background event dispatch worker.
+     * @param port TCP port to bind (default: 9000).
+     * @param host Local interface IP to bind (default: "0.0.0.0").
+     * @return true if network server bound and worker started; false on failure.
+     */
+    bool Start(uint16_t port = 9000, const std::string& host = "0.0.0.0");
+
+    /**
+     * @brief Stop the coordinator, disconnect clients, stop dispatch worker, and release subsystems.
+     */
+    void Stop();
+
+    /**
+     * @brief Check if coordinator is currently executing and accepting messages.
+     */
+    bool IsRunning() const noexcept;
+
+    // =========================================================================
+    // Subsystem Ownership & Accessors
+    // =========================================================================
+
+    /**
+     * @brief Access the owned IntersectionRegistry instance.
+     */
+    IntersectionRegistry& GetIntersectionRegistry() noexcept { return m_intersectionRegistry; }
+    const IntersectionRegistry& GetIntersectionRegistry() const noexcept { return m_intersectionRegistry; }
+
+    /**
+     * @brief Access the owned EventQueue instance.
+     */
+    EventQueue& GetEventQueue() noexcept { return m_eventQueue; }
+    const EventQueue& GetEventQueue() const noexcept { return m_eventQueue; }
+
+    /**
+     * @brief Access the owned SocketServer communication instance.
+     */
+    communication::SocketServer& GetSocketServer() noexcept { return m_socketServer; }
+    const communication::SocketServer& GetSocketServer() const noexcept { return m_socketServer; }
+
+    /**
+     * @brief Access the owned IntersectionState runtime status instance.
+     */
+    IntersectionState& GetIntersectionState() noexcept { return m_intersectionState; }
+    const IntersectionState& GetIntersectionState() const noexcept { return m_intersectionState; }
+
+    /**
+     * @brief Access the owned GreenCorridor instance.
+     */
+    GreenCorridor& GetGreenCorridor() noexcept { return m_corridor; }
+    const GreenCorridor& GetGreenCorridor() const noexcept { return m_corridor; }
+
+    /**
+     * @brief Access the owned TrafficCommandManager factory instance.
+     */
+    TrafficCommandManager& GetTrafficCommandManager() noexcept { return m_trafficCommandManager; }
+    const TrafficCommandManager& GetTrafficCommandManager() const noexcept { return m_trafficCommandManager; }
+
+    // =========================================================================
+    // Corridor Decision Engine Operations
+    // =========================================================================
+
+    /**
+     * @brief Initialize a new green corridor route.
+     * @param corridorId Unique identifier for the corridor.
+     * @param intersectionIds Ordered sequence of intersections on the route.
+     * @return true if initialized successfully.
+     */
+    bool CreateCorridor(const std::string& corridorId, const std::vector<std::string>& intersectionIds);
+
+    /**
+     * @brief Activate preemption along the configured corridor.
+     *
+     * Identifies current active intersection, generates SET_GREEN command,
+     * generates SET_RED commands for others on the corridor, and stores them.
+     * Commands are stored internally and NOT transmitted automatically.
+     *
+     * @return true if activated successfully; false otherwise.
+     */
+    bool ActivateCorridor();
+
+    /**
+     * @brief Progress active corridor preemption to the next down-path intersection.
+     * @return true if advanced to a valid next intersection; false if end of route or inactive.
+     */
+    bool AdvanceCorridor();
+
+    /**
+     * @brief Complete active corridor and generate SET_NORMAL restoring cyclical phasing.
+     * @return true on success; false if corridor is not ACTIVE.
+     */
+    bool CompleteCorridor();
+
+    /**
+     * @brief Abort active corridor and generate SET_NORMAL for all route intersections.
+     * @return true on success; false if already concluded.
+     */
+    bool CancelCorridor();
+
+    // =========================================================================
+    // Generated Commands Management
+    // =========================================================================
+
+    /**
+     * @brief Retrieve snapshot of all generated commands currently buffered.
+     */
+    std::vector<communication::Message> GetGeneratedCommands() const;
+
+    /**
+     * @brief Retrieve and clear all generated commands currently buffered.
+     */
+    std::vector<communication::Message> PopGeneratedCommands();
+
+    /**
+     * @brief Clear all buffered generated commands.
+     */
+    void ClearGeneratedCommands();
+
+    /**
+     * @brief Get count of buffered generated commands.
+     */
+    size_t GetGeneratedCommandsCount() const;
+
+    // =========================================================================
+    // Message Dispatching & Handler Registration
+    // =========================================================================
+
+    /**
+     * @brief Register a callback for a specific incoming message type.
+     * @param type Message type to handle.
+     * @param handler User-defined callback invoked when message is dispatched.
+     */
+    void SetHandler(communication::MessageType type, MessageHandler handler);
+
+    /**
+     * @brief Register a general hook invoked on every processed event.
+     */
+    void SetEventHook(EventHook hook);
+
+    // =========================================================================
+    // Outbound Inter-Node Messaging
+    // =========================================================================
+
+    /**
+     * @brief Send a typed Message packet to an intersection by its registered ID.
+     * @param intersectionId Target intersection identifier.
+     * @param message Message to serialize and send.
+     * @return true if intersection exists, is online, and transmission succeeded.
+     */
+    bool SendMessageToIntersection(const std::string& intersectionId, const communication::Message& message);
+
+    /**
+     * @brief Broadcast a typed Message packet to all currently connected nodes.
+     * @param message Message to transmit.
+     * @return true if broadcast succeeded.
+     */
+    bool BroadcastMessage(const communication::Message& message);
+
+    /**
+     * @brief Synchronously process pending events from the queue (useful in test harnesses).
+     * @param maxEvents Maximum events to process (0 = all pending).
+     * @return Number of events successfully dispatched.
+     */
+    size_t ProcessPendingEvents(size_t maxEvents = 0);
+
+private:
+    void DispatchWorkerLoop();
+    void DispatchEvent(const CoordinatorEvent& event);
+    void HandleRegister(int clientId, const communication::Message& msg);
+    void HandleHeartbeat(int clientId, const communication::Message& msg);
+    void HandleSignalStatus(int clientId, const communication::Message& msg);
+
+    // Owned subsystems
+    IntersectionRegistry m_intersectionRegistry{};
+    EventQueue m_eventQueue{};
+    communication::SocketServer m_socketServer{};
+    IntersectionState m_intersectionState{};
+    GreenCorridor m_corridor{};
+    TrafficCommandManager m_trafficCommandManager{};
+
+    mutable std::mutex m_commandsMutex{};
+    std::vector<communication::Message> m_generatedCommands{};
+
+    std::atomic<bool> m_running{false};
+    std::thread m_dispatchWorker{};
+
+    mutable std::mutex m_handlersMutex{};
+    std::unordered_map<communication::MessageType, MessageHandler> m_customHandlers{};
+    EventHook m_eventHook{nullptr};
+};
+
+} // namespace coordinator
+} // namespace aegis
+
+#endif // AEGIS_COORDINATOR_COORDINATOR_MANAGER_H

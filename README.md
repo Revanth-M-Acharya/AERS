@@ -142,19 +142,28 @@ The common foundation library provides core utilities utilized across all 19 sys
 
 ---
 
-## 6. Communication Infrastructure (Phase 2)
+## 6. Communication Infrastructure (Phase 2 & Pre-5C Refinement)
 
 The communication infrastructure library (`aegis_network`) provides production-grade, thread-safe network services connecting all SMART AEGIS nodes:
 
 1. **NetworkManager:** Subsystem facade orchestrating MQTT telemetry, direct V2X sockets, RBAC authentication, and heartbeat tracking.
-2. **MqttClient:** Thread-safe MQTT client supporting QoS 0/1/2, automatic reconnection, Last Will and Testament (LWT), loopback test dispatch, and offline ring buffering.
-3. **MessageRouter:** MQTT topic router supporting exact path routing, single-level (`+`), and multi-level (`#`) wildcards.
-4. **AuthenticationManager:** API bearer token verification, RBAC role authorization, HMAC payload signatures, and mTLS verification hooks.
-5. **RetryPolicy:** Exponential backoff with configurable jitter, multipliers, and maximum attempt limits.
-6. **HeartbeatManager:** Periodic node heartbeat generation and peer liveness monitoring with staleness detection.
-7. **Serializer:** High-throughput JSON serialization and deserialization for all 10 ICD schemas defined in `INTERFACE_SPECIFICATION.md`.
-8. **SocketClient & SocketServer:** POSIX UDP datagram sockets for direct vehicle-to-vehicle (V2V) and vehicle-to-infrastructure (V2I) ad-hoc messaging with deterministic loopback fallback for sandboxed execution.
-9. **ConnectionManager:** State machine monitoring network link lifecycle and keep-alive ping latency.
+2. **MqttClient & IMqttTransport:** Transport-independent MQTT client architecture supporting interchangeable backends:
+   - `IMqttTransport`: Abstract interface specifying connection, disconnection, subscription, unsubscription, publication, and reconnect lifecycles.
+   - `SimulationTransport`: In-memory thread-safe pub/sub engine wrapping `MessageRouter` with offline ring-buffering.
+   - `MosquittoTransport`: Clean skeleton with documented hooks for libmosquitto integration during physical hardware deployment.
+   - Preserves 100% public API compatibility while allowing zero-code-change transport swapping.
+3. **Unified MQTT Topic Schema (`aegis::network::topics`):** Standardized, type-safe topic constants and helper functions across all nodes:
+   - Commands: `aegis/intersection/{id}/commands`, `aegis/hospital/{id}/commands`
+   - Telemetry & Status: `aegis/intersection/{id}/status`, `aegis/ambulance/{id}/location`, `aegis/ambulance/{id}/vitals`
+   - Safety & Heartbeats: `aegis/ambulance/{id}/alarms`, `aegis/ambulance/{id}/heartbeat`, `aegis/intersection/{id}/status`
+   - Dispatch & Emergency: `aegis/emergency/request`, `aegis/incident/{id}/dispatched`
+4. **MessageRouter:** MQTT topic router supporting exact path routing, single-level (`+`), and multi-level (`#`) wildcards.
+5. **AuthenticationManager:** API bearer token verification, RBAC role authorization, HMAC payload signatures, and mTLS verification hooks.
+6. **RetryPolicy:** Exponential backoff with configurable jitter, multipliers, and maximum attempt limits.
+7. **HeartbeatManager:** Periodic node heartbeat generation and peer liveness monitoring with staleness detection.
+8. **Serializer:** High-throughput JSON serialization and deserialization for all 10 ICD schemas defined in `INTERFACE_SPECIFICATION.md`.
+9. **SocketClient & SocketServer:** POSIX UDP datagram sockets for direct vehicle-to-vehicle (V2V) and vehicle-to-infrastructure (V2I) ad-hoc messaging with deterministic loopback fallback for sandboxed execution.
+10. **ConnectionManager:** State machine monitoring network link lifecycle and keep-alive ping latency.
 
 ---
 

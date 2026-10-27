@@ -20,9 +20,11 @@ namespace network {
 class NetworkManager {
 public:
     NetworkManager();
+    explicit NetworkManager(std::unique_ptr<IMqttTransport> transport);
     ~NetworkManager();
 
     bool Initialize(const std::string& host, int port, bool useTls = false, const std::string& nodeId = "NODE-01");
+    bool InitializeWithTransport(std::unique_ptr<IMqttTransport> transport, const std::string& host, int port, bool useTls = false, const std::string& nodeId = "NODE-01");
     void Shutdown();
 
     // Central Telemetry & Commands (MQTT)
@@ -44,6 +46,7 @@ public:
     // Diagnostics
     bool IsConnected() const noexcept;
     MqttClient& GetMqttClient();
+    const MqttClient& GetMqttClient() const;
 
 private:
     std::unique_ptr<MqttClient> m_mqtt;

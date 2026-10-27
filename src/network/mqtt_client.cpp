@@ -1,107 +1,100 @@
+/**
+ * @file mqtt_client.cpp
+ * @brief Implementation of MqttClient delegating to interchangeable IMqttTransport backends.
+ */
+
 #include "aegis/network/mqtt_client.hpp"
-#include <mutex>
 
 namespace aegis {
 namespace network {
 
 class MqttClient::Impl {
 public:
-    std::string clientId{"AEGIS_CLIENT"};
-    std::string host{"127.0.0.1"};
-    int port{1883};
-    bool useTls{false};
+    explicit Impl(std::unique_ptr<IMqttTransport> t)
+        : transport(t ? std::move(t) : std::make_unique<SimulationTransport>()) {}
 
-    LastWill will;
-    RetryPolicy retryPolicy;
-    ConnectionManager connManager;
-    MessageRouter router;
-
-    common::CircularBuffer<MqttMessage, 1024> offlineBuffer;
-    mutable std::mutex bufferMutex;
-
-    void FlushOfflineBuffer() {
-        std::lock_guard<std::mutex> lock(bufferMutex);
-        MqttMessage msg;
-        while (offlineBuffer.Pop(msg)) {
-            // Dispatched once restored
-            router.RouteMessage(msg.topic, msg.payload);
-        }
-    }
+    std::unique_ptr<IMqttTransport> transport;
 };
 
-MqttClient::MqttClient() : m_impl(std::make_unique<Impl>()) {}
+MqttClient::MqttClient()
+    : m_impl(std::make_unique<Impl>(std::make_unique<SimulationTransport>())) {}
+
+MqttClient::MqttClient(std::unique_ptr<IMqttTransport> transport)
+    : m_impl(std::make_unique<Impl>(std::move(transport))) {}
+
+MqttClient::MqttClient(TransportType transportType)
+    : m_impl(std::make_unique<Impl>(CreateMqttTransport(transportType))) {}
+
 MqttClient::~MqttClient() = default;
 
 void MqttClient::SetClientId(const std::string& clientId) {
-    m_impl->clientId = clientId;
+    m_impl->transport->SetClientId(clientId);
 }
 
 void MqttClient::SetLastWill(const LastWill& will) {
-    m_impl->will = will;
+    m_impl->transport->SetLastWill(will);
 }
 
 void MqttClient::SetRetryPolicy(const RetryPolicy& policy) {
-    m_impl->retryPolicy = policy;
+    m_impl->transport->SetRetryPolicy(policy);
 }
 
 bool MqttClient::Connect(const std::string& host, int port, bool useTls) {
-    m_impl->host = host;
-    m_impl->port = port;
-    m_impl->useTls = useTls;
-    m_impl->connManager.SetState(ConnectionState::CONNECTED);
-    m_impl->retryPolicy.Reset();
-    m_impl->FlushOfflineBuffer();
-    return true;
+    return m_impl->transport->Connect(host, port, useTls);
 }
 
 void MqttClient::Disconnect() {
-    m_impl->connManager.SetState(ConnectionState::DISCONNECTED);
+    m_impl->transport->Disconnect();
 }
 
 bool MqttClient::Reconnect() {
-    if (!m_impl->retryPolicy.CanRetry()) {
-        m_impl->connManager.SetState(ConnectionState::FAILED);
-        return false;
-    }
-    m_impl->connManager.SetState(ConnectionState::RECONNECTING);
-    m_impl->retryPolicy.RecordAttempt();
-    m_impl->connManager.SetState(ConnectionState::CONNECTED);
-    m_impl->FlushOfflineBuffer();
-    return true;
+    return m_impl->transport->Reconnect();
 }
 
 bool MqttClient::Publish(const std::string& topic, const std::string& payload, int qos) {
-    if (!m_impl->connManager.IsConnected()) {
-        std::lock_guard<std::mutex> lock(m_impl->bufferMutex);
-        m_impl->offlineBuffer.PushOverwrite({topic, payload, qos, false});
-        return false;
-    }
-
-    // Direct loopback dispatch to local subscribers for simulation/embedded bus
-    m_impl->router.RouteMessage(topic, payload);
-    return true;
+    return m_impl->transport->Publish(topic, payload, qos);
 }
 
-bool MqttClient::Subscribe(const std::string& topicFilter, TopicHandler handler, int /*qos*/) {
-    m_impl->router.Subscribe(topicFilter, std::move(handler));
-    return true;
+bool MqttClient::Subscribe(const std::string& topicFilter, TopicHandler handler, int qos) {
+    return m_impl->transport->Subscribe(topicFilter, std::move(handler), qos);
+}
+
+void MqttClient::Unsubscribe(const std::string& topicFilter) {
+    m_impl->transport->Unsubscribe(topicFilter);
 }
 
 bool MqttClient::IsConnected() const noexcept {
-    return m_impl->connManager.IsConnected();
+    return m_impl->transport->IsConnected();
 }
 
 ConnectionState MqttClient::GetConnectionState() const noexcept {
-    return m_impl->connManager.GetState();
+    return m_impl->transport->GetConnectionState();
 }
 
 size_t MqttClient::GetBufferedMessageCount() const noexcept {
-    std::lock_guard<std::mutex> lock(m_impl->bufferMutex);
-    return m_impl->offlineBuffer.Size();
+    return m_impl->transport->GetBufferedMessageCount();
 }
 
 void MqttClient::InjectIncomingMessage(const std::string& topic, const std::string& payload) {
-    m_impl->router.RouteMessage(topic, payload);
+    m_impl->transport->InjectIncomingMessage(topic, payload);
+}
+
+void MqttClient::SetTransport(std::unique_ptr<IMqttTransport> transport) {
+    if (transport) {
+        m_impl->transport = std::move(transport);
+    }
+}
+
+IMqttTransport* MqttClient::GetTransport() noexcept {
+    return m_impl->transport.get();
+}
+
+const IMqttTransport* MqttClient::GetTransport() const noexcept {
+    return m_impl->transport.get();
+}
+
+TransportType MqttClient::GetTransportType() const noexcept {
+    return m_impl->transport ? m_impl->transport->GetType() : TransportType::SIMULATION;
 }
 
 } // namespace network

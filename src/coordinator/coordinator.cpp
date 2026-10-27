@@ -2,6 +2,7 @@
 #include "aegis/common/uuid_utils.hpp"
 #include "aegis/common/time_utils.hpp"
 #include "aegis/network/serializer.hpp"
+#include "aegis/network/topics.hpp"
 
 namespace aegis {
 namespace core {
@@ -60,31 +61,51 @@ bool CentralCoordinator::IsRunning() const noexcept {
 void CentralCoordinator::SetupCorridorHandlers() {
     m_corridorEngine.SetTriggerHandler([this](const std::string& intersectionId,
                                               const network::TrafficPreemptionRequestMsg& req) {
-        std::string payload = network::Serializer::Serialize(req);
-        std::string topic = "aegis/traffic/" + intersectionId + "/preempt";
+        // Standardized command topic & schema
+        network::IntersectionCommandMsg cmd;
+        cmd.command = "PREEMPT";
+        cmd.intersectionId = intersectionId;
+        cmd.timestamp = common::GetUtcMilliseconds();
+        std::string payload = network::Serializer::Serialize(cmd);
+        std::string topic = network::topics::IntersectionCommands(intersectionId);
         m_network->Publish(topic, payload, 2);
+
+        // Backward compatibility for legacy listeners
+        std::string legacyPayload = network::Serializer::Serialize(req);
+        m_network->Publish("aegis/traffic/" + intersectionId + "/preempt", legacyPayload, 2);
     });
 
     m_corridorEngine.SetReleaseHandler([this](const std::string& intersectionId,
                                               const std::string& unitId) {
-        std::string topic = "aegis/traffic/" + intersectionId + "/release";
-        std::string payload = "{\"intersectionId\":\"" + intersectionId + "\",\"unitId\":\"" + unitId + "\"}";
+        // Standardized command topic & schema
+        network::IntersectionCommandMsg cmd;
+        cmd.command = "CLEAR";
+        cmd.intersectionId = intersectionId;
+        cmd.timestamp = common::GetUtcMilliseconds();
+        std::string payload = network::Serializer::Serialize(cmd);
+        std::string topic = network::topics::IntersectionCommands(intersectionId);
         m_network->Publish(topic, payload, 1);
+
+        // Backward compatibility for legacy listeners
+        std::string legacyPayload = "{\"intersectionId\":\"" + intersectionId + "\",\"unitId\":\"" + unitId + "\"}";
+        m_network->Publish("aegis/traffic/" + intersectionId + "/release", legacyPayload, 1);
     });
 }
 
 void CentralCoordinator::SetupNetworkSubscriptions() {
-    // 1. Subscribe to vehicle kinematics updates
-    m_network->Subscribe("aegis/ambulance/+/gps", [this](const std::string& /*topic*/, const std::string& payload) {
+    // 1. Subscribe to vehicle kinematics updates (canonical & legacy alias)
+    auto gpsHandler = [this](const std::string& /*topic*/, const std::string& payload) {
         auto res = network::Serializer::DeserializeGPSUpdate(payload);
         if (res.IsOk()) {
             const auto& gps = res.Value();
             ProcessGpsUpdate(gps.unitId, {gps.latitude, gps.longitude, 0.0}, gps.speed, gps.bearing);
         }
-    });
+    };
+    m_network->Subscribe(std::string(network::topics::ALL_FLEET_LOCATION), gpsHandler);
+    m_network->Subscribe(std::string(network::topics::LEGACY_AMBULANCE_GPS), gpsHandler);
 
     // 2. Subscribe to incoming 911 emergency requests
-    m_network->Subscribe("aegis/emergency/request", [this](const std::string& /*topic*/, const std::string& payload) {
+    m_network->Subscribe(std::string(network::topics::EMERGENCY_REQUEST), [this](const std::string& /*topic*/, const std::string& payload) {
         auto res = network::Serializer::DeserializeEmergencyRequest(payload);
         if (res.IsOk()) {
             const auto& req = res.Value();
@@ -97,6 +118,11 @@ void CentralCoordinator::SetupNetworkSubscriptions() {
             input.requestedCapabilities = req.requiredCapabilities;
             SubmitEmergencyCall(input);
         }
+    });
+
+    // 3. Subscribe to intersection status & telemetry
+    m_network->Subscribe(std::string(network::topics::ALL_INTERSECTION_STATUS), [](const std::string& /*topic*/, const std::string& /*payload*/) {
+        // Intersection monitoring / telemetry ingestion
     });
 }
 

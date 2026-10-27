@@ -7,6 +7,7 @@
 #include "aegis/common/time_utils.hpp"
 #include "aegis/common/json_helper.hpp"
 #include "aegis/logger/logger.hpp"
+#include "aegis/network/topics.hpp"
 
 #include <thread>
 #include <chrono>
@@ -70,8 +71,8 @@ TrafficSignalNode::~TrafficSignalNode() {
 }
 
 void TrafficSignalNode::SetupTopics() {
-    m_commandTopic = "aegis/intersection/" + m_intersectionId + "/commands";
-    m_statusTopic = "aegis/intersection/" + m_intersectionId + "/status";
+    m_commandTopic = network::topics::IntersectionCommands(m_intersectionId);
+    m_statusTopic = network::topics::IntersectionStatus(m_intersectionId);
 }
 
 void TrafficSignalNode::SetIntersectionId(const std::string& id) {
@@ -227,6 +228,11 @@ bool TrafficSignalNode::Subscribe() {
         ProcessCommand(payload);
     }, 1);
 
+    // Also subscribe to legacy preemption topic for backward compatibility
+    m_network->Subscribe("aegis/traffic/" + m_intersectionId + "/preempt", [this](const std::string&, const std::string& payload) {
+        ProcessCommand(payload);
+    }, 1);
+
     if (ok) {
         m_isSubscribed.store(true);
         logger::Logger::Instance().Log(
@@ -291,16 +297,21 @@ bool TrafficSignalNode::ProcessCommand(const std::string& commandPayload) {
     if (jsonCmd.IsOk()) {
         cmd = jsonCmd.Value().command;
     } else {
-        auto extracted = common::JsonHelper::ExtractString(commandPayload, "command");
-        if (extracted) {
-            cmd = *extracted;
+        auto legacyPreempt = network::Serializer::DeserializeTrafficPreemptionRequest(commandPayload);
+        if (legacyPreempt.IsOk()) {
+            cmd = "PREEMPT";
         } else {
-            cmd = commandPayload;
-            while (!cmd.empty() && (cmd.back() == '\r' || cmd.back() == '\n' || cmd.back() == ' ')) {
-                cmd.pop_back();
-            }
-            while (!cmd.empty() && (cmd.front() == ' ' || cmd.front() == '\t')) {
-                cmd.erase(cmd.begin());
+            auto extracted = common::JsonHelper::ExtractString(commandPayload, "command");
+            if (extracted) {
+                cmd = *extracted;
+            } else {
+                cmd = commandPayload;
+                while (!cmd.empty() && (cmd.back() == '\r' || cmd.back() == '\n' || cmd.back() == ' ')) {
+                    cmd.pop_back();
+                }
+                while (!cmd.empty() && (cmd.front() == ' ' || cmd.front() == '\t')) {
+                    cmd.erase(cmd.begin());
+                }
             }
         }
     }

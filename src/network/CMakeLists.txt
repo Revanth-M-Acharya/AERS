@@ -7,6 +7,8 @@ add_library(aegis_network STATIC
     socket_client.cpp
     socket_server.cpp
     heartbeat_manager.cpp
+    simulation_transport.cpp
+    mosquitto_transport.cpp
     mqtt_client.cpp
     network_manager.cpp
 )
