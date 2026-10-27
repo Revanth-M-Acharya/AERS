@@ -1,9 +1,9 @@
 # Executable Targets
 
 # Central Coordinator Daemon (Raspberry Pi 1 / QNX RTOS)
-add_executable(aegis_coordinator coordinator_main.cpp)
-target_include_directories(aegis_coordinator PRIVATE ${CMAKE_SOURCE_DIR}/src ${CMAKE_SOURCE_DIR}/include)
-target_link_libraries(aegis_coordinator PRIVATE
+add_executable(aegis_coordinator_app coordinator_main.cpp)
+target_include_directories(aegis_coordinator_app PRIVATE ${CMAKE_SOURCE_DIR}/src ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(aegis_coordinator_app PRIVATE
     aegis_coordinator
     aegis_communication
     aegis_route_planner

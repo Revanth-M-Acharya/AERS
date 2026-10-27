@@ -9,7 +9,7 @@ namespace logger {
 
 enum class LogLevel : uint8_t {
     TRACE = 0,
-    DEBUG,
+   LOG_DEBUG,
     INFO,
     WARN,
     ERR,

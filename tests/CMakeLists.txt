@@ -75,6 +75,8 @@ add_test(NAME test_green_corridor COMMAND test_green_corridor)
 add_executable(test_ambulance_node unit/test_ambulance_node.cpp)
 target_link_libraries(test_ambulance_node PRIVATE
     aegis_ambulance
+    aegis_coordinator
+    aegis_communication
     aegis_network
     aegis_common
     aegis_logger
@@ -126,7 +128,14 @@ target_link_libraries(test_rpi_deployment PRIVATE
     aegis_common
     aegis_logger
 )
-add_test(NAME test_rpi_deployment COMMAND test_rpi_deployment)
+add_test(
+    NAME test_rpi_deployment
+    COMMAND test_rpi_deployment
+)
+
+set_tests_properties(test_rpi_deployment PROPERTIES
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+)
 
 add_executable(test_medical_priority unit/test_medical_priority.cpp)
 target_link_libraries(test_medical_priority PRIVATE

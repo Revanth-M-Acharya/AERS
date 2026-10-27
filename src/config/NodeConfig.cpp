@@ -14,12 +14,15 @@ namespace config {
 
 bool NodeConfigLoader::LoadFromFile(const std::string& filePath, NodeConfig& outConfig) {
     std::ifstream file(filePath);
+    std::cout << "Trying to open: " << filePath << std::endl;
+    std::cout << "is_open = " << file.is_open() << std::endl;
     if (!file.is_open()) {
         return false;
     }
 
     std::stringstream buffer;
     buffer << file.rdbuf();
+    std::cout << "JSON:\n" << buffer.str() << std::endl;
     file.close();
 
     return LoadFromString(buffer.str(), outConfig);

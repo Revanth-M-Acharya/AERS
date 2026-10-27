@@ -16,7 +16,7 @@
 #include <condition_variable>
 #include <chrono>
 #include <cstdint>
-
+#include <atomic>
 namespace aegis {
 namespace coordinator {
 

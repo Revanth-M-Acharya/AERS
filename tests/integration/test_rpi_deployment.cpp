@@ -30,7 +30,7 @@ void TestConfigurationLoading() {
 
     // 1. Raspberry Pi 1: Central Coordinator (QNX RTOS)
     NodeConfig rpi1;
-    assert(NodeConfigLoader::LoadFromFile("config/deployment/rpi1_coordinator.json", rpi1));
+    assert(NodeConfigLoader::LoadFromFile("../config/deployment/rpi1_coordinator.json", rpi1));
     assert(rpi1.IsValid());
     assert(rpi1.nodeId == "COORDINATOR");
     assert(rpi1.role == NodeRole::COORDINATOR);
@@ -41,7 +41,7 @@ void TestConfigurationLoading() {
 
     // 2. Raspberry Pi 2: Intersection Node A (INT_A)
     NodeConfig rpi2;
-    assert(NodeConfigLoader::LoadFromFile("config/deployment/rpi2_intersection_a.json", rpi2));
+    assert(NodeConfigLoader::LoadFromFile("../config/deployment/rpi2_intersection_a.json", rpi2));
     assert(rpi2.IsValid());
     assert(rpi2.nodeId == "INT_A");
     assert(rpi2.role == NodeRole::INTERSECTION);
@@ -51,7 +51,7 @@ void TestConfigurationLoading() {
 
     // 3. Raspberry Pi 3: Intersection Node B (INT_B)
     NodeConfig rpi3;
-    assert(NodeConfigLoader::LoadFromFile("config/deployment/rpi3_intersection_b.json", rpi3));
+    assert(NodeConfigLoader::LoadFromFile("../config/deployment/rpi3_intersection_b.json", rpi3));
     assert(rpi3.IsValid());
     assert(rpi3.nodeId == "INT_B");
     assert(rpi3.role == NodeRole::INTERSECTION);
@@ -60,7 +60,7 @@ void TestConfigurationLoading() {
 
     // 4. Raspberry Pi 4: Intersection Node C (INT_C)
     NodeConfig rpi4;
-    assert(NodeConfigLoader::LoadFromFile("config/deployment/rpi4_intersection_c.json", rpi4));
+    assert(NodeConfigLoader::LoadFromFile("../config/deployment/rpi4_intersection_c.json", rpi4));
     assert(rpi4.IsValid());
     assert(rpi4.nodeId == "INT_C");
     assert(rpi4.role == NodeRole::INTERSECTION);
@@ -69,7 +69,7 @@ void TestConfigurationLoading() {
 
     // 5. Negative Test: Non-existent file
     NodeConfig invalidCfg;
-    assert(!NodeConfigLoader::LoadFromFile("config/deployment/non_existent.json", invalidCfg));
+    assert(!NodeConfigLoader::LoadFromFile("../config/deployment/non_existent.json", invalidCfg));
 
     // 6. Roundtrip serialization test
     std::string serialized = NodeConfigLoader::Serialize(rpi2);
@@ -90,10 +90,10 @@ void TestDeploymentStartupSequencing() {
 
     // Load configs and set test port for loopback execution
     NodeConfig coordCfg, nodeACfg, nodeBCfg, nodeCCfg;
-    assert(NodeConfigLoader::LoadFromFile("config/deployment/rpi1_coordinator.json", coordCfg));
-    assert(NodeConfigLoader::LoadFromFile("config/deployment/rpi2_intersection_a.json", nodeACfg));
-    assert(NodeConfigLoader::LoadFromFile("config/deployment/rpi3_intersection_b.json", nodeBCfg));
-    assert(NodeConfigLoader::LoadFromFile("config/deployment/rpi4_intersection_c.json", nodeCCfg));
+    assert(NodeConfigLoader::LoadFromFile("../config/deployment/rpi1_coordinator.json", coordCfg));
+    assert(NodeConfigLoader::LoadFromFile("../config/deployment/rpi2_intersection_a.json", nodeACfg));
+    assert(NodeConfigLoader::LoadFromFile("../config/deployment/rpi3_intersection_b.json", nodeBCfg));
+    assert(NodeConfigLoader::LoadFromFile("../config/deployment/rpi4_intersection_c.json", nodeCCfg));
 
     coordCfg.port = testPort;
     coordCfg.ipAddress = "127.0.0.1";
