@@ -4,6 +4,7 @@
  */
 
 #include "IntersectionNode.h"
+#include "aegis/common/json_helper.hpp"
 #include <thread>
 #include <iostream>
 
@@ -19,7 +20,8 @@ IntersectionNode::IntersectionNode(std::string intersectionId, uint32_t heartbea
     , m_running(false)
     , m_socketClient()
     , m_heartbeatManager(m_intersectionId, heartbeatIntervalMs)
-    , m_signalController() {
+    , m_signalController()
+    , m_trafficSignalNode(m_intersectionId, traffic_signal::SignalState::RED) {
 }
 
 IntersectionNode::~IntersectionNode() {
@@ -40,6 +42,7 @@ IntersectionNode::IntersectionNode(IntersectionNode&& other) noexcept {
     m_socketClient = std::move(other.m_socketClient);
     m_heartbeatManager = std::move(other.m_heartbeatManager);
     m_signalController = std::move(other.m_signalController);
+    m_trafficSignalNode = std::move(other.m_trafficSignalNode);
 
     std::lock_guard<std::mutex> lock(other.m_configMutex);
     m_commandCallback = std::move(other.m_commandCallback);
@@ -60,6 +63,7 @@ IntersectionNode& IntersectionNode::operator=(IntersectionNode&& other) noexcept
         m_socketClient = std::move(other.m_socketClient);
         m_heartbeatManager = std::move(other.m_heartbeatManager);
         m_signalController = std::move(other.m_signalController);
+        m_trafficSignalNode = std::move(other.m_trafficSignalNode);
 
         std::scoped_lock lock(m_configMutex, other.m_configMutex);
         m_commandCallback = std::move(other.m_commandCallback);
@@ -219,43 +223,99 @@ void IntersectionNode::HandleIncomingMessage(const communication::Message& messa
 
 bool IntersectionNode::ProcessCoordinatorCommand(const communication::Message& commandMessage) {
     const std::string& payload = commandMessage.GetPayload();
-    bool processed = false;
-    std::string matchedCmd;
+    std::string commandName = payload;
+    std::string reason = "Coordinator Command";
 
-    if (payload.find("SET_GREEN") != std::string::npos) {
-        m_signalController.SetGreen();
-        matchedCmd = "SET_GREEN";
-        processed = true;
-    } else if (payload.find("SET_RED") != std::string::npos) {
-        m_signalController.SetRed();
-        matchedCmd = "SET_RED";
-        processed = true;
-    } else if (payload.find("SET_NORMAL") != std::string::npos) {
-        m_signalController.SetNormal();
-        matchedCmd = "SET_NORMAL";
-        processed = true;
-    } else if (payload.find("EMERGENCY_MODE_ON") != std::string::npos) {
-        m_signalController.EnableEmergency();
-        matchedCmd = "EMERGENCY_MODE_ON";
-        processed = true;
-    } else if (payload.find("EMERGENCY_MODE_OFF") != std::string::npos) {
-        m_signalController.DisableEmergency();
-        matchedCmd = "EMERGENCY_MODE_OFF";
-        processed = true;
+    if (!payload.empty() && payload.front() == '{') {
+        auto cmdOpt = common::JsonHelper::ExtractString(payload, "command");
+        if (cmdOpt.has_value()) {
+            commandName = cmdOpt.value();
+        } else {
+            auto actOpt = common::JsonHelper::ExtractString(payload, "action");
+            if (actOpt.has_value()) {
+                commandName = actOpt.value();
+            }
+        }
+        auto reasonOpt = common::JsonHelper::ExtractString(payload, "reason");
+        if (reasonOpt.has_value()) {
+            reason = reasonOpt.value();
+        }
     }
 
-    if (processed) {
+    return ProcessCoordinatorCommand(commandName, reason);
+}
+
+bool IntersectionNode::ProcessCoordinatorCommand(const std::string& commandName, const std::string& reason) {
+    // Requirement 10: IntersectionNode shall log: [COMMAND RECEIVED]
+    std::cout << "[COMMAND RECEIVED]" << std::endl;
+
+    {
+        std::lock_guard<std::mutex> lock(m_receivedCommandsMutex);
+        m_commandsReceivedCount++;
+        m_lastReceivedCommand = commandName;
+        m_receivedCommands.push_back(commandName);
+    }
+
+    // Requirement 5 & 6: Forward to owned TrafficSignalNode
+    bool success = m_trafficSignalNode.HandleCoordinatorCommand(commandName, reason);
+
+    // Keep legacy SignalController in sync for backwards compatibility with earlier phases
+    if (commandName.find("SET_GREEN") != std::string::npos || commandName == "GREEN") {
+        m_signalController.SetGreen();
+    } else if (commandName.find("SET_RED") != std::string::npos || commandName == "RED" || commandName.find("SET_ALL_RED") != std::string::npos) {
+        m_signalController.SetRed();
+    } else if (commandName.find("SET_YELLOW") != std::string::npos || commandName == "YELLOW") {
+        m_signalController.SetYellow();
+    } else if (commandName.find("EMERGENCY_MODE_ON") != std::string::npos) {
+        m_signalController.EnableEmergency();
+        success = true;
+    } else if (commandName.find("EMERGENCY_MODE_OFF") != std::string::npos) {
+        m_signalController.DisableEmergency();
+        success = true;
+    } else if (commandName.find("SET_NORMAL") != std::string::npos) {
+        m_signalController.SetNormal();
+        success = true;
+    }
+
+    // Trigger command callback if registered
+    {
         CommandCallback cb = nullptr;
         {
             std::lock_guard<std::mutex> lock(m_configMutex);
             cb = m_commandCallback;
         }
         if (cb) {
-            cb(matchedCmd);
+            cb(commandName);
         }
     }
 
-    return processed;
+    // Requirement 11, 12, 13: Send acknowledgement to Coordinator
+    // If invalid transition/command, return error acknowledgement
+    std::string currentStateStr = m_trafficSignalNode.GetCurrentStateString();
+    std::string status = success ? "OK" : "ERROR";
+
+    std::string ackPayload = "{\"status\":\"" + status +
+                             "\",\"intersectionId\":\"" + m_intersectionId +
+                             "\",\"currentState\":\"" + currentStateStr +
+                             "\",\"command\":\"" + commandName + "\"}";
+
+    communication::Message ackMsg(communication::MessageType::ACK,
+                                  m_intersectionId,
+                                  ackPayload,
+                                  communication::Message::CurrentTimestampMs());
+
+    if (m_socketClient.IsConnected()) {
+        m_socketClient.Send(ackMsg);
+    }
+
+    {
+        std::lock_guard<std::mutex> lock(m_ackCbMutex);
+        if (m_ackCallback) {
+            m_ackCallback(ackMsg);
+        }
+    }
+
+    return success;
 }
 
 void IntersectionNode::OnConnectionStateChanged(bool connected) {
@@ -302,6 +362,33 @@ bool IntersectionNode::IsRunning() const noexcept {
 void IntersectionNode::SetCommandCallback(CommandCallback callback) {
     std::lock_guard<std::mutex> lock(m_configMutex);
     m_commandCallback = std::move(callback);
+}
+
+void IntersectionNode::SetAckCallback(AckCallback callback) {
+    std::lock_guard<std::mutex> lock(m_ackCbMutex);
+    m_ackCallback = std::move(callback);
+}
+
+size_t IntersectionNode::GetCommandsReceivedCount() const {
+    std::lock_guard<std::mutex> lock(m_receivedCommandsMutex);
+    return m_commandsReceivedCount;
+}
+
+std::vector<std::string> IntersectionNode::GetReceivedCommands() const {
+    std::lock_guard<std::mutex> lock(m_receivedCommandsMutex);
+    return m_receivedCommands;
+}
+
+std::string IntersectionNode::GetLastReceivedCommand() const {
+    std::lock_guard<std::mutex> lock(m_receivedCommandsMutex);
+    return m_lastReceivedCommand;
+}
+
+void IntersectionNode::ClearReceivedCommands() {
+    std::lock_guard<std::mutex> lock(m_receivedCommandsMutex);
+    m_commandsReceivedCount = 0;
+    m_lastReceivedCommand.clear();
+    m_receivedCommands.clear();
 }
 
 } // namespace intersection

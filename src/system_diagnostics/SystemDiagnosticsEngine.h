@@ -1,0 +1,341 @@
+/**
+ * @file SystemDiagnosticsEngine.h
+ * @brief SMART AEGIS (AERS) Phase 14B - System Diagnostics & Predictive Maintenance Engine
+ *
+ * Implements centralized deterministic platform-wide health monitoring, multi-subsystem diagnostics,
+ * failure prediction, automated maintenance recommendation, and system readiness verification across
+ * all SMART AEGIS layers (Coordinator, Raspberry Pi Cluster, Communication, Traffic Network,
+ * Distributed Consensus, Signal Controllers, Intersections, Hospital Services, and Ambulance Fleet).
+ *
+ * Sits immediately after RaspberryPiClusterManager (Phase 14A), serving as the final software reliability
+ * layer before transitioning to the QNX Hardware Abstraction Layer.
+ *
+ * Pure C++17, QNX SDP 8.0, Raspberry Pi 4 Model B & POSIX compliant.
+ * Zero third-party dependencies, thread-safe (7 disjoint mutexes), deterministic.
+ *
+ * @author SMART AEGIS Core Engineering Team
+ * @date 2026
+ */
+
+#ifndef AEGIS_SYSTEM_DIAGNOSTICS_ENGINE_H
+#define AEGIS_SYSTEM_DIAGNOSTICS_ENGINE_H
+
+#include <string>
+#include <vector>
+#include <unordered_map>
+#include <mutex>
+#include <cstdint>
+#include <memory>
+#include <chrono>
+
+namespace aegis {
+namespace diagnostics {
+
+// =============================================================================
+// Enumerations
+// =============================================================================
+
+/**
+ * @brief Operational diagnostic health state of a subsystem component.
+ */
+enum class DiagnosticState {
+    HEALTHY,
+    WARNING,
+    CRITICAL,
+    FAILED
+};
+
+/**
+ * @brief Categorization of subsystem component types in SMART AEGIS.
+ */
+enum class ComponentType {
+    COORDINATOR,
+    RPI_CLUSTER,
+    TRAFFIC_NETWORK,
+    CONSENSUS,
+    SIGNAL_CONTROLLER,
+    INTERSECTION,
+    COMMUNICATION,
+    HOSPITAL,
+    AMBULANCE,
+    UNKNOWN
+};
+
+/**
+ * @brief Priority classification for scheduled or predictive maintenance.
+ */
+enum class MaintenancePriority {
+    NONE,
+    LOW,
+    MEDIUM,
+    HIGH,
+    IMMEDIATE
+};
+
+// =============================================================================
+// String Conversion Helpers
+// =============================================================================
+
+std::string ToString(DiagnosticState state);
+std::string ToString(ComponentType type);
+std::string ToString(MaintenancePriority priority);
+
+DiagnosticState DiagnosticStateFromString(const std::string& str);
+ComponentType ComponentTypeFromString(const std::string& str);
+MaintenancePriority MaintenancePriorityFromString(const std::string& str);
+
+// =============================================================================
+// Data Models
+// =============================================================================
+
+/**
+ * @brief Complete live health record and telemetry for a subsystem component.
+ */
+struct ComponentHealth {
+    std::string componentId;
+    std::string componentName;
+    ComponentType componentType{ComponentType::UNKNOWN};
+    DiagnosticState diagnosticState{DiagnosticState::HEALTHY};
+    double cpuUsage{0.0};            ///< Percentage (0.0 to 100.0)
+    double ramUsage{0.0};            ///< Percentage (0.0 to 100.0)
+    double storageUsage{0.0};        ///< Percentage (0.0 to 100.0)
+    double temperature{45.0};        ///< Celsius
+    double networkLatency{0.0};      ///< Milliseconds
+    double packetLoss{0.0};          ///< Percentage (0.0 to 100.0)
+    double heartbeatDelay{0.0};      ///< Milliseconds
+    double clockOffsetMs{0.0};       ///< Milliseconds offset
+    uint32_t threadCount{1};
+    uint32_t queueLength{0};
+    double responseTimeMs{0.0};      ///< Milliseconds
+    double missionSuccessRate{100.0};///< Percentage (0.0 to 100.0)
+    uint64_t lastHeartbeat{0};       ///< Milliseconds epoch timestamp
+    bool isOnline{true};
+    bool isSynchronized{true};
+    uint32_t failureCount{0};
+    uint32_t consecutiveFailures{0};
+    double memoryGrowthRate{0.0};    ///< MB per minute
+    std::string lastError{""};
+
+    ComponentHealth() = default;
+
+    ComponentHealth(const std::string& id,
+                    ComponentType type = ComponentType::UNKNOWN,
+                    const std::string& name = "")
+        : componentId(id),
+          componentName(name.empty() ? id : name),
+          componentType(type) {}
+};
+
+/**
+ * @brief Detailed forensic record of a diagnostic run on a component.
+ */
+struct DiagnosticRecord {
+    std::string recordId;
+    std::string componentId;
+    ComponentType componentType{ComponentType::UNKNOWN};
+    uint64_t timestamp{0};
+    DiagnosticState state{DiagnosticState::HEALTHY};
+    double cpuUsage{0.0};
+    double ramUsage{0.0};
+    double storageUsage{0.0};
+    double temperature{0.0};
+    double networkLatency{0.0};
+    double packetLoss{0.0};
+    std::vector<std::string> detectedIssues;
+    std::vector<std::string> predictedRisks;
+    std::string recommendation;
+
+    DiagnosticRecord() = default;
+};
+
+/**
+ * @brief Actionable recommendation generated by the predictive maintenance engine.
+ */
+struct MaintenanceRecommendation {
+    std::string recommendationId;
+    std::string componentId;
+    ComponentType componentType{ComponentType::UNKNOWN};
+    MaintenancePriority priority{MaintenancePriority::NONE};
+    std::string reason;
+    std::string recommendedAction;
+    std::string predictedFailureType; ///< e.g., "THERMAL_SHUTDOWN", "MEMORY_LEAK", "COMMUNICATION_TIMEOUT"
+    uint64_t timestamp{0};
+    bool resolved{false};
+
+    MaintenanceRecommendation() = default;
+};
+
+/**
+ * @brief Platform-wide operational statistics and readiness metrics.
+ */
+struct DiagnosticStatistics {
+    uint32_t totalComponents{0};
+    uint32_t healthyComponents{0};
+    uint32_t warningComponents{0};
+    uint32_t criticalComponents{0};
+    uint32_t failedComponents{0};
+    uint32_t totalDiagnosticsRun{0};
+    uint32_t totalPredictionsGenerated{0};
+    uint32_t totalMaintenanceRecommendations{0};
+    double averageCpuUsage{0.0};
+    double averageTemperature{0.0};
+    double averageLatency{0.0};
+    double averagePacketLoss{0.0};
+    double systemReadinessScore{100.0}; ///< 0.0 to 100.0
+    bool systemReady{true};
+
+    DiagnosticStatistics() = default;
+};
+
+// =============================================================================
+// SystemDiagnosticsEngine Class
+// =============================================================================
+
+/**
+ * @brief Master System Diagnostics & Predictive Maintenance Engine for SMART AEGIS.
+ */
+class SystemDiagnosticsEngine {
+public:
+    // Operational thresholds conforming to system specification
+    static constexpr double WARNING_CPU_THRESHOLD_PCT = 85.0;
+    static constexpr double CRITICAL_CPU_THRESHOLD_PCT = 95.0;
+    static constexpr double WARNING_RAM_THRESHOLD_PCT = 85.0;
+    static constexpr double CRITICAL_RAM_THRESHOLD_PCT = 95.0;
+    static constexpr double WARNING_STORAGE_THRESHOLD_PCT = 90.0;
+    static constexpr double CRITICAL_STORAGE_THRESHOLD_PCT = 98.0;
+    static constexpr double WARNING_TEMP_THRESHOLD_C = 70.0;
+    static constexpr double CRITICAL_TEMP_THRESHOLD_C = 80.0;
+    static constexpr double WARNING_PACKET_LOSS_PCT = 5.0;
+    static constexpr double CRITICAL_PACKET_LOSS_PCT = 20.0;
+    static constexpr double MEMORY_LEAK_GROWTH_THRESHOLD_MB_PER_MIN = 10.0;
+    static constexpr uint64_t DEFAULT_HEARTBEAT_TIMEOUT_MS = 5000;
+
+    SystemDiagnosticsEngine();
+    ~SystemDiagnosticsEngine() = default;
+
+    // Non-copyable, non-movable to guarantee thread safety
+    SystemDiagnosticsEngine(const SystemDiagnosticsEngine&) = delete;
+    SystemDiagnosticsEngine& operator=(const SystemDiagnosticsEngine&) = delete;
+    SystemDiagnosticsEngine(SystemDiagnosticsEngine&&) = delete;
+    SystemDiagnosticsEngine& operator=(SystemDiagnosticsEngine&&) = delete;
+
+    // -------------------------------------------------------------------------
+    // Component Registration & Lifecycle
+    // -------------------------------------------------------------------------
+    bool RegisterComponent(const ComponentHealth& component);
+    bool RegisterComponent(const std::string& componentId,
+                           ComponentType type,
+                           const std::string& name = "");
+    bool RemoveComponent(const std::string& componentId);
+
+    // -------------------------------------------------------------------------
+    // Health & Telemetry Updates
+    // -------------------------------------------------------------------------
+    bool UpdateComponentHealth(const std::string& componentId, DiagnosticState state);
+    bool UpdateHeartbeat(const std::string& componentId, double latencyMs = 0.0);
+    bool UpdateTelemetry(const std::string& componentId,
+                         double cpuUsage,
+                         double ramUsage,
+                         double storageUsage,
+                         double temperature,
+                         double packetLoss = 0.0);
+    bool UpdateSyncState(const std::string& componentId, bool isSynchronized);
+    bool UpdateMemoryGrowth(const std::string& componentId, double memoryGrowthRate);
+    bool RecordFailure(const std::string& componentId, const std::string& reason);
+
+    // -------------------------------------------------------------------------
+    // Diagnostics & Scanning
+    // -------------------------------------------------------------------------
+    DiagnosticRecord RunDiagnostics(const std::string& componentId);
+    std::vector<DiagnosticRecord> RunFullSystemScan();
+
+    // -------------------------------------------------------------------------
+    // Predictive Engine & Maintenance
+    // -------------------------------------------------------------------------
+    std::vector<MaintenanceRecommendation> PredictFailures();
+    std::vector<MaintenanceRecommendation> GenerateMaintenancePlan();
+
+    // -------------------------------------------------------------------------
+    // System Readiness & Queries
+    // -------------------------------------------------------------------------
+    bool VerifySystemReadiness() const;
+    bool GetComponent(const std::string& componentId, ComponentHealth& outComponent) const;
+    std::vector<ComponentHealth> GetAllComponents() const;
+    std::vector<ComponentHealth> GetCriticalComponents() const;
+    DiagnosticStatistics GetStatistics() const;
+
+    // -------------------------------------------------------------------------
+    // Structured ASCII Reports
+    // -------------------------------------------------------------------------
+    std::string GenerateHealthReport() const;
+    std::string GenerateDiagnosticsReport(const std::string& componentId = "") const;
+    std::string GenerateFailureReport() const;
+    std::string GenerateMaintenanceReport() const;
+
+    // -------------------------------------------------------------------------
+    // Configuration & Reset
+    // -------------------------------------------------------------------------
+    void SetHeartbeatTimeoutMs(uint64_t timeoutMs);
+    void SetCpuThresholds(double warningPct, double criticalPct);
+    void SetTemperatureThresholds(double warningTemp, double criticalTemp);
+    void SetPacketLossThresholds(double warningPct, double criticalPct);
+    void SetMemoryGrowthThreshold(double thresholdMBPerMin);
+    void Reset();
+
+private:
+    static uint64_t GetCurrentTimeMs();
+    DiagnosticState EvaluateMultiMetricHealth(const ComponentHealth& comp) const;
+
+    // Seven dedicated mutexes as strictly specified (no nested locking):
+    mutable std::mutex registryMutex_;
+    mutable std::mutex healthMutex_;
+    mutable std::mutex diagnosticsMutex_;
+    mutable std::mutex predictionMutex_;
+    mutable std::mutex maintenanceMutex_;
+    mutable std::mutex statisticsMutex_;
+    mutable std::mutex reportMutex_;
+
+    // Registry data
+    std::unordered_map<std::string, ComponentHealth> components_;
+
+    // Diagnostics history
+    std::vector<DiagnosticRecord> diagnosticHistory_;
+
+    // Maintenance recommendations
+    std::vector<MaintenanceRecommendation> maintenanceRecommendations_;
+
+    // Statistics & sample accumulators
+    DiagnosticStatistics statistics_;
+    double totalCpuSum_{0.0};
+    uint32_t totalCpuSamples_{0};
+    double totalTempSum_{0.0};
+    uint32_t totalTempSamples_{0};
+    double totalLatencySum_{0.0};
+    uint32_t totalLatencySamples_{0};
+    double totalPacketLossSum_{0.0};
+    uint32_t totalPacketLossSamples_{0};
+
+    // Configuration thresholds
+    uint64_t heartbeatTimeoutMs_{DEFAULT_HEARTBEAT_TIMEOUT_MS};
+    double warningCpuThresholdPct_{WARNING_CPU_THRESHOLD_PCT};
+    double criticalCpuThresholdPct_{CRITICAL_CPU_THRESHOLD_PCT};
+    double warningRamThresholdPct_{WARNING_RAM_THRESHOLD_PCT};
+    double criticalRamThresholdPct_{CRITICAL_RAM_THRESHOLD_PCT};
+    double warningStorageThresholdPct_{WARNING_STORAGE_THRESHOLD_PCT};
+    double criticalStorageThresholdPct_{CRITICAL_STORAGE_THRESHOLD_PCT};
+    double warningTempThresholdC_{WARNING_TEMP_THRESHOLD_C};
+    double criticalTempThresholdC_{CRITICAL_TEMP_THRESHOLD_C};
+    double warningPacketLossPct_{WARNING_PACKET_LOSS_PCT};
+    double criticalPacketLossPct_{CRITICAL_PACKET_LOSS_PCT};
+    double memoryGrowthThreshold_{MEMORY_LEAK_GROWTH_THRESHOLD_MB_PER_MIN};
+};
+
+} // namespace diagnostics
+
+// Namespace alias for system_diagnostics
+namespace system_diagnostics = diagnostics;
+
+} // namespace aegis
+
+#endif // AEGIS_SYSTEM_DIAGNOSTICS_ENGINE_H
+

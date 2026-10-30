@@ -9,6 +9,7 @@
 #include <cmath>
 #include <sstream>
 #include <iomanip>
+#include <iostream>
 
 namespace aegis {
 namespace scheduler {
@@ -240,6 +241,195 @@ void PriorityScheduler::Clear() {
     m_detector.ClearArrivals();
     m_activeGreenGrants.clear();
     m_lastResolutions.clear();
+    m_requestsQueue.clear();
+}
+
+// =============================================================================
+// Phase 8A: Intelligent Priority Scheduling Engine Implementation
+// =============================================================================
+
+bool PriorityScheduler::SubmitEmergencyRequest(const EmergencyRequest& request) {
+    if (request.requestId.empty() && request.ambulanceId.empty()) {
+        return false;
+    }
+    std::lock_guard<std::mutex> lock(m_mutex);
+
+    EmergencyRequest req = request;
+    if (req.requestId.empty()) {
+        req.requestId = "REQ_" + req.ambulanceId;
+    }
+    if (req.estimatedArrivalTime <= 0.0 && req.eta > 0.0) {
+        req.estimatedArrivalTime = req.eta;
+    }
+    if (req.eta <= 0.0 && req.estimatedArrivalTime > 0.0) {
+        req.eta = req.estimatedArrivalTime;
+    }
+    if (req.patientSeverity != PatientSeverity::LOW && req.severity == PatientSeverity::LOW) {
+        req.severity = req.patientSeverity;
+    }
+    if (req.severity != PatientSeverity::LOW && req.patientSeverity == PatientSeverity::LOW) {
+        req.patientSeverity = req.severity;
+    }
+    if (req.distance <= 0.0 && req.distanceMeters > 0.0) {
+        req.distance = req.distanceMeters;
+    }
+    if (req.distanceMeters <= 0.0 && req.distance > 0.0) {
+        req.distanceMeters = req.distance;
+    }
+    if (req.timestamp == 0 && req.timestampMs > 0) {
+        req.timestamp = req.timestampMs;
+    }
+    if (req.timestampMs == 0 && req.timestamp > 0) {
+        req.timestampMs = req.timestamp;
+    }
+    req.rank = SeverityToRank(req.severity);
+
+    for (auto& existing : m_requestsQueue) {
+        if (existing.requestId == req.requestId) {
+            existing = req;
+            return true;
+        }
+    }
+
+    m_requestsQueue.push_back(req);
+    return true;
+}
+
+bool PriorityScheduler::RemoveRequest(const std::string& requestId) {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    auto it = std::remove_if(m_requestsQueue.begin(), m_requestsQueue.end(),
+        [&requestId](const EmergencyRequest& r) {
+            return r.requestId == requestId || r.ambulanceId == requestId;
+        });
+    if (it != m_requestsQueue.end()) {
+        m_requestsQueue.erase(it, m_requestsQueue.end());
+        return true;
+    }
+    return false;
+}
+
+NextEmergencyResult PriorityScheduler::GetNextEmergency(bool pop) {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    if (m_requestsQueue.empty()) {
+        return NextEmergencyResult(std::nullopt);
+    }
+    auto bestIt = std::min_element(m_requestsQueue.begin(), m_requestsQueue.end(), EmergencyRequestComparator{});
+    EmergencyRequest top = *bestIt;
+    if (pop) {
+        m_requestsQueue.erase(bestIt);
+    }
+    return NextEmergencyResult(top);
+}
+
+bool PriorityScheduler::GetNextEmergency(EmergencyRequest& outRequest, bool pop) {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    if (m_requestsQueue.empty()) {
+        return false;
+    }
+    auto bestIt = std::min_element(m_requestsQueue.begin(), m_requestsQueue.end(), EmergencyRequestComparator{});
+    outRequest = *bestIt;
+    if (pop) {
+        m_requestsQueue.erase(bestIt);
+    }
+    return true;
+}
+
+const std::vector<EmergencyRequest>& PriorityScheduler::ScheduleRequests(bool logOutput) {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    if (m_requestsQueue.size() > 1) {
+        // Fast indirect pointer sort to avoid moving 200-byte objects with heap strings
+        std::vector<EmergencyRequest*> ptrs;
+        ptrs.reserve(m_requestsQueue.size());
+        for (auto& req : m_requestsQueue) {
+            ptrs.push_back(&req);
+        }
+
+        EmergencyRequestComparator comp;
+        std::sort(ptrs.begin(), ptrs.end(), [&comp](const EmergencyRequest* a, const EmergencyRequest* b) {
+            return comp(*a, *b);
+        });
+
+        std::vector<EmergencyRequest> sortedQueue;
+        sortedQueue.reserve(m_requestsQueue.size());
+        for (auto* ptr : ptrs) {
+            sortedQueue.push_back(std::move(*ptr));
+        }
+        m_requestsQueue = std::move(sortedQueue);
+    }
+
+    if (logOutput && m_enableConsoleLog && !m_requestsQueue.empty()) {
+        const auto& top = m_requestsQueue.front();
+        std::cout << "[SCHEDULER]\n"
+                  << "Requests Received: " << m_requestsQueue.size() << "\n"
+                  << "Selected Ambulance: " << top.ambulanceId << "\n"
+                  << "Priority: " << PatientSeverityToString(top.GetSeverity()) << "\n"
+                  << "ETA: " << FormatEtaSeconds(top.GetEta()) << "\n" << std::flush;
+    }
+
+    return m_requestsQueue;
+}
+
+std::vector<EmergencyRequest> PriorityScheduler::GetCurrentQueue() const {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    auto queueCopy = m_requestsQueue;
+    std::sort(queueCopy.begin(), queueCopy.end(), EmergencyRequestComparator{});
+    return queueCopy;
+}
+
+void PriorityScheduler::ClearQueue() {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    m_requestsQueue.clear();
+}
+
+std::string PriorityScheduler::FormatQueue() const {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    auto queueCopy = m_requestsQueue;
+    std::sort(queueCopy.begin(), queueCopy.end(), EmergencyRequestComparator{});
+    return FormatQueue(queueCopy);
+}
+
+std::string PriorityScheduler::FormatQueue(const std::vector<EmergencyRequest>& queue) const {
+    std::ostringstream oss;
+    for (size_t i = 0; i < queue.size(); ++i) {
+        const auto& req = queue[i];
+        oss << req.ambulanceId << "\n"
+            << PatientSeverityToString(req.GetSeverity()) << "\n"
+            << "ETA " << FormatEtaSeconds(req.GetEta());
+        if (i + 1 < queue.size()) {
+            oss << "\n\n";
+        }
+    }
+    return oss.str();
+}
+
+std::string PriorityScheduler::FormatSchedulerLog() const {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    if (m_requestsQueue.empty()) {
+        return "[SCHEDULER]\nRequests Received: 0\nSelected Ambulance: NONE\nPriority: NONE\nETA: 0 sec\n";
+    }
+    auto queueCopy = m_requestsQueue;
+    std::sort(queueCopy.begin(), queueCopy.end(), EmergencyRequestComparator{});
+    const auto& top = queueCopy.front();
+    std::ostringstream oss;
+    oss << "[SCHEDULER]\n"
+        << "Requests Received: " << queueCopy.size() << "\n"
+        << "Selected Ambulance: " << top.ambulanceId << "\n"
+        << "Priority: " << PatientSeverityToString(top.GetSeverity()) << "\n"
+        << "ETA: " << FormatEtaSeconds(top.GetEta()) << "\n";
+    return oss.str();
+}
+
+void PriorityScheduler::SetConsoleLogging(bool enabled) noexcept {
+    m_enableConsoleLog = enabled;
+}
+
+bool PriorityScheduler::GetConsoleLogging() const noexcept {
+    return m_enableConsoleLog;
+}
+
+size_t PriorityScheduler::GetQueueSize() const {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    return m_requestsQueue.size();
 }
 
 } // namespace scheduler

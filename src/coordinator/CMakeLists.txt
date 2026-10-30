@@ -12,6 +12,7 @@ add_library(aegis_coordinator STATIC
     IntersectionState.cpp
     GreenCorridor.cpp
     TrafficCommandManager.cpp
+    NodeRegistrationManager.cpp
 )
 target_include_directories(aegis_coordinator PUBLIC 
     ${CMAKE_SOURCE_DIR}/include

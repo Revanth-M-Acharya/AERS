@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<?fileVersion 4.0.0?><cproject storage_type_id="org.eclipse.cdt.core.XmlProjectDescriptionStorage">
+	<storageModule moduleId="org.eclipse.cdt.core.settings">
+		<cconfiguration id="com.qnx.tools.ide.qde.core.qnx.debug.aarch64le">
+			<storageModule buildSystemId="org.eclipse.cdt.managedbuilder.core.configurationDataProvider" id="com.qnx.tools.ide.qde.core.qnx.debug.aarch64le" moduleId="org.eclipse.cdt.core.settings" name="Debug-aarch64le">
+				<externalSettings/>
+				<extensions>
+					<extension id="com.qnx.tools.ide.qde.core.QDELinker" point="org.eclipse.cdt.core.BinaryParser"/>
+					<extension id="org.eclipse.cdt.core.ELF" point="org.eclipse.cdt.core.BinaryParser"/>
+					<extension id="org.eclipse.cdt.core.GCCErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
+					<extension id="org.eclipse.cdt.core.GLDErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
+				</extensions>
+			</storageModule>
+			<storageModule moduleId="cdtBuildSystem" version="4.0.0">
+				<configuration artifactName="${ProjName}" buildProperties="" cleanCommand="rm -rf" description="QNX SDP 8.0 Debug Build for Raspberry Pi 4 (aarch64le)" id="com.qnx.tools.ide.qde.core.qnx.debug.aarch64le" name="Debug-aarch64le" parent="com.qnx.tools.ide.qde.core.qnx.base">
+					<folderInfo id="com.qnx.tools.ide.qde.core.qnx.debug.aarch64le." name="/" resourcePath="">
+						<toolChain id="com.qnx.qcc.toolChain.debug.aarch64le" name="QNX QCC Compiler (aarch64le)" superClass="com.qnx.qcc.toolChain">
+							<targetPlatform archList="all" binaryParser="com.qnx.tools.ide.qde.core.QDELinker" id="com.qnx.qcc.targetPlatform" name="QNX Target Platform" osList="qnx"/>
+							<builder buildPath="${workspace_loc:/SMART_AEGIS}/build-qnx" id="com.qnx.qcc.builder.debug" keepEnvironmentInBuildfile="false" managedBuildOn="false" name="QNX Make Builder" command="make -f Makefile.qnx ARCH=aarch64le BUILD_TYPE=Debug"/>
+							<tool id="com.qnx.qcc.compiler.debug" name="QCC C++ Compiler" superClass="com.qnx.qcc.compiler">
+								<option id="com.qnx.qcc.compiler.includePath" superClass="com.qnx.qcc.compiler.includePath" valueType="includePath">
+									<listOptionValue builtIn="false" value="${workspace_loc:/SMART_AEGIS/include}"/>
+									<listOptionValue builtIn="false" value="${workspace_loc:/SMART_AEGIS/src}"/>
+									<listOptionValue builtIn="false" value="${workspace_loc:/SMART_AEGIS/network}"/>
+								</option>
+								<option id="com.qnx.qcc.compiler.symbols" superClass="com.qnx.qcc.compiler.symbols" valueType="definedSymbols">
+									<listOptionValue builtIn="false" value="__QNX__=1"/>
+									<listOptionValue builtIn="false" value="__QNXNTO__=1"/>
+									<listOptionValue builtIn="false" value="AEGIS_TARGET_QNX=1"/>
+									<listOptionValue builtIn="false" value="AEGIS_DEBUG=1"/>
+									<listOptionValue builtIn="false" value="_QNX_SOURCE=1"/>
+								</option>
+							</tool>
+						</toolChain>
+					</folderInfo>
+				</configuration>
+			</storageModule>
+		</cconfiguration>
+		<cconfiguration id="com.qnx.tools.ide.qde.core.qnx.release.aarch64le">
+			<storageModule buildSystemId="org.eclipse.cdt.managedbuilder.core.configurationDataProvider" id="com.qnx.tools.ide.qde.core.qnx.release.aarch64le" moduleId="org.eclipse.cdt.core.settings" name="Release-aarch64le">
+				<externalSettings/>
+				<extensions>
+					<extension id="com.qnx.tools.ide.qde.core.QDELinker" point="org.eclipse.cdt.core.BinaryParser"/>
+					<extension id="org.eclipse.cdt.core.ELF" point="org.eclipse.cdt.core.BinaryParser"/>
+					<extension id="org.eclipse.cdt.core.GCCErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
+					<extension id="org.eclipse.cdt.core.GLDErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
+				</extensions>
+			</storageModule>
+			<storageModule moduleId="cdtBuildSystem" version="4.0.0">
+				<configuration artifactName="${ProjName}" buildProperties="" cleanCommand="rm -rf" description="QNX SDP 8.0 Release Build for Raspberry Pi 4 (aarch64le)" id="com.qnx.tools.ide.qde.core.qnx.release.aarch64le" name="Release-aarch64le" parent="com.qnx.tools.ide.qde.core.qnx.base">
+					<folderInfo id="com.qnx.tools.ide.qde.core.qnx.release.aarch64le." name="/" resourcePath="">
+						<toolChain id="com.qnx.qcc.toolChain.release.aarch64le" name="QNX QCC Compiler (aarch64le)" superClass="com.qnx.qcc.toolChain">
+							<targetPlatform archList="all" binaryParser="com.qnx.tools.ide.qde.core.QDELinker" id="com.qnx.qcc.targetPlatform" name="QNX Target Platform" osList="qnx"/>
+							<builder buildPath="${workspace_loc:/SMART_AEGIS}/build-qnx" id="com.qnx.qcc.builder.release" keepEnvironmentInBuildfile="false" managedBuildOn="false" name="QNX Make Builder" command="make -f Makefile.qnx ARCH=aarch64le BUILD_TYPE=Release"/>
+							<tool id="com.qnx.qcc.compiler.release" name="QCC C++ Compiler" superClass="com.qnx.qcc.compiler">
+								<option id="com.qnx.qcc.compiler.includePath" superClass="com.qnx.qcc.compiler.includePath" valueType="includePath">
+									<listOptionValue builtIn="false" value="${workspace_loc:/SMART_AEGIS/include}"/>
+									<listOptionValue builtIn="false" value="${workspace_loc:/SMART_AEGIS/src}"/>
+									<listOptionValue builtIn="false" value="${workspace_loc:/SMART_AEGIS/network}"/>
+								</option>
+								<option id="com.qnx.qcc.compiler.symbols" superClass="com.qnx.qcc.compiler.symbols" valueType="definedSymbols">
+									<listOptionValue builtIn="false" value="__QNX__=1"/>
+									<listOptionValue builtIn="false" value="__QNXNTO__=1"/>
+									<listOptionValue builtIn="false" value="AEGIS_TARGET_QNX=1"/>
+									<listOptionValue builtIn="false" value="NDEBUG=1"/>
+									<listOptionValue builtIn="false" value="_QNX_SOURCE=1"/>
+								</option>
+							</tool>
+						</toolChain>
+					</folderInfo>
+				</configuration>
+			</storageModule>
+		</cconfiguration>
+		<cconfiguration id="com.qnx.tools.ide.qde.core.qnx.profile.aarch64le">
+			<storageModule buildSystemId="org.eclipse.cdt.managedbuilder.core.configurationDataProvider" id="com.qnx.tools.ide.qde.core.qnx.profile.aarch64le" moduleId="org.eclipse.cdt.core.settings" name="Profile-aarch64le">
+				<externalSettings/>
+				<extensions>
+					<extension id="com.qnx.tools.ide.qde.core.QDELinker" point="org.eclipse.cdt.core.BinaryParser"/>
+					<extension id="org.eclipse.cdt.core.ELF" point="org.eclipse.cdt.core.BinaryParser"/>
+					<extension id="org.eclipse.cdt.core.GCCErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
+					<extension id="org.eclipse.cdt.core.GLDErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
+				</extensions>
+			</storageModule>
+			<storageModule moduleId="cdtBuildSystem" version="4.0.0">
+				<configuration artifactName="${ProjName}" buildProperties="" cleanCommand="rm -rf" description="QNX SDP 8.0 Profile Build for Raspberry Pi 4 (aarch64le)" id="com.qnx.tools.ide.qde.core.qnx.profile.aarch64le" name="Profile-aarch64le" parent="com.qnx.tools.ide.qde.core.qnx.base">
+					<folderInfo id="com.qnx.tools.ide.qde.core.qnx.profile.aarch64le." name="/" resourcePath="">
+						<toolChain id="com.qnx.qcc.toolChain.profile.aarch64le" name="QNX QCC Compiler (aarch64le)" superClass="com.qnx.qcc.toolChain">
+							<targetPlatform archList="all" binaryParser="com.qnx.tools.ide.qde.core.QDELinker" id="com.qnx.qcc.targetPlatform" name="QNX Target Platform" osList="qnx"/>
+							<builder buildPath="${workspace_loc:/SMART_AEGIS}/build-qnx" id="com.qnx.qcc.builder.profile" keepEnvironmentInBuildfile="false" managedBuildOn="false" name="QNX Make Builder" command="make -f Makefile.qnx ARCH=aarch64le BUILD_TYPE=Profile"/>
+							<tool id="com.qnx.qcc.compiler.profile" name="QCC C++ Compiler" superClass="com.qnx.qcc.compiler">
+								<option id="com.qnx.qcc.compiler.includePath" superClass="com.qnx.qcc.compiler.includePath" valueType="includePath">
+									<listOptionValue builtIn="false" value="${workspace_loc:/SMART_AEGIS/include}"/>
+									<listOptionValue builtIn="false" value="${workspace_loc:/SMART_AEGIS/src}"/>
+									<listOptionValue builtIn="false" value="${workspace_loc:/SMART_AEGIS/network}"/>
+								</option>
+								<option id="com.qnx.qcc.compiler.symbols" superClass="com.qnx.qcc.compiler.symbols" valueType="definedSymbols">
+									<listOptionValue builtIn="false" value="__QNX__=1"/>
+									<listOptionValue builtIn="false" value="__QNXNTO__=1"/>
+									<listOptionValue builtIn="false" value="AEGIS_TARGET_QNX=1"/>
+									<listOptionValue builtIn="false" value="PROFILE=1"/>
+									<listOptionValue builtIn="false" value="AEGIS_PROFILE=1"/>
+									<listOptionValue builtIn="false" value="_QNX_SOURCE=1"/>
+								</option>
+							</tool>
+						</toolChain>
+					</folderInfo>
+				</configuration>
+			</storageModule>
+		</cconfiguration>
+	</storageModule>
+	<storageModule moduleId="cdtBuildSystem" version="4.0.0">
+		<project id="SMART_AEGIS.null.1" name="SMART_AEGIS"/>
+	</storageModule>
+</cproject>
+

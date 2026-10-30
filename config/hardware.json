@@ -1,0 +1,123 @@
+{
+  "system": "SMART_AEGIS_CPS",
+  "version": "1.0.0",
+  "hardwarePlatform": "Raspberry_Pi_4_Model_B",
+  "operatingSystem": "QNX_SDP_8_0",
+  "wirelessNetwork": {
+    "interface": "wlan0",
+    "ssid": "SMART_AEGIS_WIFI_MESH",
+    "subnet": "192.168.1.0/24",
+    "gateway": "192.168.1.1",
+    "dns": "192.168.1.1",
+    "nodes": [
+      {
+        "nodeId": "COORDINATOR",
+        "role": "COORDINATOR",
+        "staticIp": "192.168.1.100",
+        "port": 9000,
+        "macAddress": "DC:A6:32:01:00:01"
+      },
+      {
+        "nodeId": "INT_A",
+        "name": "Brigade Road / MG Road",
+        "role": "TRAFFIC_NODE",
+        "staticIp": "192.168.1.101",
+        "port": 9001,
+        "coordinatorIp": "192.168.1.100",
+        "coordinatorPort": 9000,
+        "macAddress": "DC:A6:32:01:00:02"
+      },
+      {
+        "nodeId": "INT_B",
+        "name": "MG Road / Residency Road",
+        "role": "TRAFFIC_NODE",
+        "staticIp": "192.168.1.102",
+        "port": 9002,
+        "coordinatorIp": "192.168.1.100",
+        "coordinatorPort": 9000,
+        "macAddress": "DC:A6:32:01:00:03"
+      },
+      {
+        "nodeId": "INT_C",
+        "name": "Hospital Approach Avenue",
+        "role": "TRAFFIC_NODE",
+        "staticIp": "192.168.1.103",
+        "port": 9003,
+        "coordinatorIp": "192.168.1.100",
+        "coordinatorPort": 9000,
+        "macAddress": "DC:A6:32:01:00:04"
+      }
+    ],
+    "heartbeatIntervalMs": 1000,
+    "reconnectIntervalMs": 2000,
+    "connectionTimeoutMs": 3000
+  },
+  "gpioPinMapping": {
+    "roadA": {
+      "redPin": 17,
+      "yellowPin": 27,
+      "greenPin": 22
+    },
+    "roadB": {
+      "redPin": 23,
+      "yellowPin": 24,
+      "greenPin": 25
+    },
+    "pedestrian": {
+      "walkPin": 5,
+      "dontWalkPin": 6
+    },
+    "alerts": {
+      "buzzerPin": 18,
+      "strobePin": 26,
+      "manualOverrideButtonPin": 16
+    },
+    "irSensors": {
+      "approachSensorPin": 12,
+      "departureSensorPin": 13,
+      "debounceMs": 50,
+      "stuckTimeoutSec": 30
+    }
+  },
+  "relayConfiguration": {
+    "moduleType": "4_CHANNEL_OPTOCOUPLER_RELAY",
+    "activeLow": true,
+    "maxSwitchingFrequencyHz": 10,
+    "channels": [
+      {
+        "channel": 1,
+        "gpioPin": 17,
+        "assignedFunction": "ROAD_A_RED",
+        "defaultState": "ENERGIZED"
+      },
+      {
+        "channel": 2,
+        "gpioPin": 22,
+        "assignedFunction": "ROAD_A_GREEN",
+        "defaultState": "DE_ENERGIZED"
+      },
+      {
+        "channel": 3,
+        "gpioPin": 23,
+        "assignedFunction": "ROAD_B_RED",
+        "defaultState": "ENERGIZED"
+      },
+      {
+        "channel": 4,
+        "gpioPin": 25,
+        "assignedFunction": "ROAD_B_GREEN",
+        "defaultState": "DE_ENERGIZED"
+      }
+    ]
+  },
+  "signalTimings": {
+    "normalGreenSec": 22.0,
+    "clearanceYellowSec": 4.0,
+    "allRedHoldSec": 2.0,
+    "pedestrianWalkSec": 7.0,
+    "preemptionMaxHoldSec": 60.0,
+    "failsafeState": "FLASHING_YELLOW",
+    "failsafeFlashRateHz": 1.0
+  }
+}
+

@@ -1,0 +1,48 @@
+{
+  "window": {
+    "width": 1600,
+    "height": 980,
+    "fullscreen": false,
+    "title": "SMART AEGIS — Traffic Intersection Operations Console (QNX RTOS / RPi4)"
+  },
+  "runtime": {
+    "refreshIntervalMs": 50,
+    "animationIntervalMs": 33,
+    "heartbeatTimeoutMs": 3000,
+    "logRetentionLimit": 500
+  },
+  "theme": {
+    "colorScheme": "DARK_OBSIDIAN",
+    "primaryColor": "#10B981",
+    "accentColor": "#06B6D4",
+    "dangerColor": "#EF4444",
+    "warningColor": "#F59E0B",
+    "backgroundColor": "#0B0F19",
+    "cardColor": "#111827"
+  },
+  "panels": {
+    "intersectionMap": true,
+    "trafficSignal": true,
+    "queueMonitor": true,
+    "irSensor": true,
+    "nodeHealth": true,
+    "greenCorridor": true,
+    "eventLog": true,
+    "manualControl": true
+  },
+  "map": {
+    "defaultZoom": 1.0,
+    "minLatitude": 12.9650,
+    "maxLatitude": 12.9800,
+    "minLongitude": 77.5880,
+    "maxLongitude": 77.6050
+  },
+  "thresholds": {
+    "queueLengthWarning": 10,
+    "queueLengthCritical": 20,
+    "latencyWarningMs": 50.0,
+    "cpuWarningPct": 80.0,
+    "temperatureWarningC": 70.0
+  }
+}
+

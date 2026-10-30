@@ -22,6 +22,8 @@ out/
 # Logs and runtime dumps
 *.log
 *.coredump
+*.tar.gz
+collected_logs_*/
 logs/
 run/
 

@@ -239,6 +239,10 @@ void CoordinatorManager::DispatchEvent(const CoordinatorEvent& event) {
                 case communication::MessageType::SIGNAL_STATUS:
                     HandleSignalStatus(event.clientId, event.message);
                     break;
+                case communication::MessageType::ACK:
+                case communication::MessageType::ERROR:
+                    HandleAck(event.clientId, event.message);
+                    break;
                 default:
                     break;
             }
@@ -674,6 +678,162 @@ std::string CoordinatorManager::GetNetworkStatusString() const {
     }
     oss << "------------------------------------\n";
     return oss.str();
+}
+
+void CoordinatorManager::HandleAck(int clientId, const communication::Message& msg) {
+    (void)clientId;
+    const std::string& payload = msg.GetPayload();
+    if (payload == "REGISTER_OK") {
+        return;
+    }
+
+    std::string intersectionId = msg.GetSenderId();
+    std::string currentState = "RED";
+    std::string status = "OK";
+    std::string command = "";
+
+    if (!payload.empty() && payload.front() == '{') {
+        auto idOpt = common::JsonHelper::ExtractString(payload, "intersectionId");
+        if (idOpt.has_value()) intersectionId = idOpt.value();
+        auto stOpt = common::JsonHelper::ExtractString(payload, "currentState");
+        if (stOpt.has_value()) currentState = stOpt.value();
+        auto statOpt = common::JsonHelper::ExtractString(payload, "status");
+        if (statOpt.has_value()) status = statOpt.value();
+        auto cmdOpt = common::JsonHelper::ExtractString(payload, "command");
+        if (cmdOpt.has_value()) command = cmdOpt.value();
+    }
+
+    // Requirement 12: Coordinator shall log:
+    // [ACK]
+    // Intersection
+    // Current Signal State
+    std::string formattedLog = FormatAckLog(intersectionId, currentState);
+    std::cout << formattedLog << std::endl;
+
+    SignalCommandAck ackRecord;
+    ackRecord.intersectionId = intersectionId;
+    ackRecord.currentState = currentState;
+    ackRecord.status = status;
+    ackRecord.command = command;
+    ackRecord.rawLog = formattedLog;
+    ackRecord.timestampMs = msg.GetTimestamp();
+
+    {
+        std::lock_guard<std::mutex> lock(m_acksMutex);
+        m_receivedAcks.push_back(ackRecord);
+        m_lastAckLog = formattedLog;
+        m_acksCv.notify_all();
+    }
+}
+
+std::string CoordinatorManager::FormatCommandLog(const std::string& coordinatorId,
+                                                 const std::string& destination,
+                                                 const std::string& command,
+                                                 const std::string& reason) {
+    std::ostringstream oss;
+    oss << "[COMMAND]\n"
+        << "Coordinator: " << coordinatorId << "\n"
+        << "Destination: " << destination << "\n"
+        << "Command: " << command << "\n"
+        << "Reason: " << reason;
+    return oss.str();
+}
+
+std::string CoordinatorManager::FormatAckLog(const std::string& intersectionId,
+                                             const std::string& currentState) {
+    std::ostringstream oss;
+    oss << "[ACK]\n"
+        << "Intersection: " << intersectionId << "\n"
+        << "Current Signal State: " << currentState;
+    return oss.str();
+}
+
+bool CoordinatorManager::SendTrafficSignalCommand(const std::string& intersectionId,
+                                                  const std::string& command,
+                                                  const std::string& reason) {
+    // Requirement 9: Coordinator shall log:
+    // [COMMAND]
+    // Coordinator
+    // Destination
+    // Command
+    // Reason
+    std::string formattedLog = FormatCommandLog("COORDINATOR", intersectionId, command, reason);
+    std::cout << formattedLog << std::endl;
+
+    {
+        std::lock_guard<std::mutex> lock(m_commandLogsMutex);
+        m_commandLogs.push_back(formattedLog);
+    }
+
+    // Transmit command to intersection
+    std::string payload = "{\"command\":\"" + command + "\",\"reason\":\"" + reason + "\",\"destination\":\"" + intersectionId + "\"}";
+    communication::Message msg(communication::MessageType::COMMAND,
+                               "COORDINATOR",
+                               payload,
+                               communication::Message::CurrentTimestampMs());
+
+    return SendMessageToIntersection(intersectionId, msg);
+}
+
+std::vector<std::string> CoordinatorManager::GetCommandLogs() const {
+    std::lock_guard<std::mutex> lock(m_commandLogsMutex);
+    return m_commandLogs;
+}
+
+std::string CoordinatorManager::GetLastCommandLog() const {
+    std::lock_guard<std::mutex> lock(m_commandLogsMutex);
+    if (m_commandLogs.empty()) return "";
+    return m_commandLogs.back();
+}
+
+void CoordinatorManager::ClearCommandLogs() {
+    std::lock_guard<std::mutex> lock(m_commandLogsMutex);
+    m_commandLogs.clear();
+}
+
+std::vector<SignalCommandAck> CoordinatorManager::GetReceivedAcks() const {
+    std::lock_guard<std::mutex> lock(m_acksMutex);
+    return m_receivedAcks;
+}
+
+size_t CoordinatorManager::GetReceivedAcksCount() const {
+    std::lock_guard<std::mutex> lock(m_acksMutex);
+    return m_receivedAcks.size();
+}
+
+std::string CoordinatorManager::GetLastAckLog() const {
+    std::lock_guard<std::mutex> lock(m_acksMutex);
+    return m_lastAckLog;
+}
+
+void CoordinatorManager::ClearReceivedAcks() {
+    std::lock_guard<std::mutex> lock(m_acksMutex);
+    m_receivedAcks.clear();
+    m_lastAckLog.clear();
+}
+
+bool CoordinatorManager::WaitForAck(const std::string& intersectionId,
+                                   uint32_t timeoutMs,
+                                   SignalCommandAck* outAck) {
+    std::unique_lock<std::mutex> lock(m_acksMutex);
+    bool ok = m_acksCv.wait_for(lock, std::chrono::milliseconds(timeoutMs), [&]() {
+        for (const auto& a : m_receivedAcks) {
+            if (a.intersectionId == intersectionId) {
+                return true;
+            }
+        }
+        return false;
+    });
+
+    if (ok && outAck) {
+        for (auto it = m_receivedAcks.rbegin(); it != m_receivedAcks.rend(); ++it) {
+            if (it->intersectionId == intersectionId) {
+                *outAck = *it;
+                break;
+            }
+        }
+    }
+    return ok;
 }
 
 void CoordinatorManager::PrintNetworkStatus() const {

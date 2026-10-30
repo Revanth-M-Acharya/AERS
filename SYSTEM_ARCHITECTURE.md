@@ -1,5 +1,28 @@
 # SMART AEGIS: System Architecture Specification
 
+> [!IMPORTANT]
+> **ARCHITECTURAL FREEZE DECLARATION (v1.0-hackathon-core):**  
+> As of release `v1.0-hackathon-core`, the complete SMART AEGIS system architecture, topological layering, public APIs, message schemas, and hardware pin mappings are **FORMALLY FROZEN**.  
+> The following 18 modules are designated as **Core Infrastructure Modules** and must NOT be modified in future commits except for critical bug fixes:
+> 1. Coordinator (`src/coordinator/`)
+> 2. Traffic Controller (`src/traffic_controller/`, `src/traffic_signal/`)
+> 3. Route Planner (`src/route_planner/`, `src/replanning/`)
+> 4. Green Corridor (`src/green_corridor/`, `src/green_wave/`)
+> 5. Priority Scheduler (`src/priority_scheduler/`, `src/scheduler/`)
+> 6. Distributed Scheduler (`src/distributed_signal/`, `src/distributed_consensus/`)
+> 7. Safety Monitor (`src/safety/`, `src/hardware/HardwareWatchdog.cpp`)
+> 8. Deadline Monitor (`src/corridor/CorridorDeadlineMonitor.cpp`)
+> 9. QNX Resource Manager (`src/qnx/QnxResourceManager.cpp`)
+> 10. QNX Message Passing (`src/qnx/QnxMessagePassing.cpp`)
+> 11. QNX Pulse Manager (`src/qnx/QnxPulseManager.cpp`)
+> 12. QNX Timer Service (`src/qnx/QnxTimerService.cpp`)
+> 13. QNX Thread Scheduler (`src/qnx/QnxThreadScheduler.cpp`)
+> 14. QNX Interrupt Manager (`src/qnx/QnxInterruptManager.cpp`)
+> 15. QNX Diagnostics (`src/qnx/QnxDiagnostics.cpp`)
+> 16. GPIO BSP (`src/bsp/RaspberryPi4BSP.cpp`)
+> 17. Relay Controller (`src/hardware/RelayController.cpp`)
+> 18. Network Layer (`network/`, `src/communication/`, `src/network/`)
+
 ## Document Overview
 * **System Name:** SMART AEGIS (Automated Emergency Grid & Intelligent Shield)
 * **Target Domain:** Distributed Ambulance Emergency Response & Preemption System
@@ -896,4 +919,194 @@ Maintains, validates, and distributes global, regional, and node-specific static
 │  [15. Logging]  •  [17. Safety Monitor (WDT)]   │   │  [15. Logging]  •  [17. Safety Monitor (WDT)]    │
 │  [19. Config]   •  [18. Network Comm]           │   │  [19. Config]   •  [18. Network Comm]            │
 └─────────────────────────────────────────────────┘   └──────────────────────────────────────────────────┘
+```
+
+---
+
+## 20. Production-Grade Embedded System Architecture (Raspberry Pi 4 + QNX SDP 8.0)
+
+Under Phase 1 and Phase 2, each edge roadside intersection SBC runs an autonomous industrial control loop on the official QNX SDP 8.0 Raspberry Pi 4 Quick Start Image (`aarch64le`):
+
+```
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│               QNX SDP 8.0 INDUSTRIAL EMBEDDED CONTROLLER ARCHITECTURE                  │
+│                                                                                        │
+│  ┌──────────────────────────────────────────────────────────────────────────────────┐  │
+│  │ 1. BootManager: Deterministic 14-Stage Startup Pipeline                          │  │
+│  │    [Kernel Boot] ➔ [Init BSP] ➔ [Init GPIO] ➔ [Reserve GPIO] ➔ [Init Relays] ➔    │  │
+│  │    [Relay POST] ➔ [Init IR] ➔ [Init Net] ➔ [Verify Link] ➔ [Register Node] ➔      │  │
+│  │    [Start Watchdog] ➔ [Start Heartbeat] ➔ [Enter Operational] ➔ [READY]          │  │
+│  └────────────────────────────────────────┬─────────────────────────────────────────┘  │
+│                                           │                                            │
+│  ┌────────────────────────────────────────▼─────────────────────────────────────────┐  │
+│  │ 2. HardwareWatchdog (Dedicated 1 Hz Thread)                                      │  │
+│  │    Supervises: [Relays] • [GPIO] • [IR Sensors] • [Traffic Controller] •         │  │
+│  │                [Heartbeat] • [Network Link] • [Boot Manager]                     │  │
+│  │    Action on Fault: ALL_RED / FLASHING_YELLOW ➔ Alarm ➔ Auto-Recovery            │  │
+│  └────────────────────────────────────────┬─────────────────────────────────────────┘  │
+│                                           │                                            │
+│  ┌────────────────────────────────────────▼─────────────────────────────────────────┐  │
+│  │ 3. Relay Controller & Hardware Interlock (Active-Low Driving: 0V ON, 3.3V OFF)    │  │
+│  │    Relay 1: Road A Red (GPIO 17)        Relay 3: Road B Red (GPIO 23)            │  │
+│  │    Relay 2: Road A Green (GPIO 22)  ◄X► Relay 4: Road B Green (GPIO 25)          │  │
+│  │    * Hard mutual exclusion interlock: Road A Green + Road B Green impossible!    │  │
+│  └────────────────────────────────────────┬─────────────────────────────────────────┘  │
+│                                           │                                            │
+│  ┌────────────────────────────────────────▼─────────────────────────────────────────┐  │
+│  │ 4. Wi-Fi / Ethernet Quality Monitor (WirelessQualityMonitor)                     │  │
+│  │    5 Tiers: EXCELLENT (>-60dBm) • GOOD (>-68dBm) • FAIR (>-75dBm) •               │  │
+│  │             POOR (>-85dBm) • CRITICAL (< -85dBm or >= 20% loss) • DISCONNECTED  │  │
+│  └────────────────────────────────────────┬─────────────────────────────────────────┘  │
+│                                           │                                            │
+│  ┌────────────────────────────────────────▼─────────────────────────────────────────┐  │
+│  │ 5. Safe Shutdown Manager (ShutdownManager: Non-Reentrant 10-Step Pipeline)       │  │
+│  │    Stop Commands ➔ Complete Transition ➔ All Red Clearance ➔ Deactivate Relays  │  │
+│  │    ➔ Store Logs ➔ Release GPIO ➔ Stop Threads ➔ Close Sockets ➔ Unmap BSP Memory │  │
+│  └──────────────────────────────────────────────────────────────────────────────────┘  │
+└────────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 21. Real-Time Corridor Operations & Autonomous Fault Recovery (Phase 3)
+
+Phase 3 implements real-time corridor monitoring, deterministic dynamic release, multi-domain timeout supervision, in-flight route replanning, and autonomous fault recovery on the **Raspberry Pi 4 QNX SDP 8.0 Quick Start Image** (`aarch64le`):
+
+```
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│                   PHASE 3: REAL-TIME CORRIDOR OPERATIONS ARCHITECTURE                  │
+│                                                                                        │
+│  ┌──────────────────────────────────────────────────────────────────────────────────┐  │
+│  │ 1. CorridorDeadlineMonitor                                                       │  │
+│  │    - Monotonic QNX clock deadline accounting (Creation, ETA, Elapsed, Remaining) │  │
+│  │    - Timeout detection ➔ Automatic corridor recovery callback & JSON telemetry   │  │
+│  └────────────────────────────────────────┬─────────────────────────────────────────┘  │
+│                                           │                                            │
+│  ┌────────────────────────────────────────▼─────────────────────────────────────────┐  │
+│  │ 2. EmergencyTimeoutManager (Deadlock-Free Supervision)                           │  │
+│  │    - Domain 1: Stalled Ambulance (Lack of spatial waypoint progression)          │  │
+│  │    - Domain 2: Coordinator Inactivity (Central pulse / dispatch silence)         │  │
+│  │    - Domain 3: Communication Link Timeout (Node TCP / heartbeat silence)         │  │
+│  │    - Domain 4: Intersection ACK Timeout (Preemption command retransmit/escalate) │  │
+│  │    - 3-Tier Escalation: TIER 1 Retry ➔ TIER 2 Alert ➔ TIER 3 Fail-safe Recovery  │  │
+│  └────────────────────────────────────────┬─────────────────────────────────────────┘  │
+│                                           │                                            │
+│  ┌────────────────────────────────────────▼─────────────────────────────────────────┐  │
+│  │ 3. DynamicCorridorReleaseManager                                                 │  │
+│  │    - Intersection-by-intersection immediate release upon vehicle passage         │  │
+│  │    - Deterministic clearance: CLEARING_YELLOW (3s) ➔ ALL_RED (2s) ➔ RELEASED    │  │
+│  │    - Multi-vehicle overlap safety (hands off preemption to queued emergency)     │  │
+│  └────────────────────────────────────────┬─────────────────────────────────────────┘  │
+│                                           │                                            │
+│  ┌────────────────────────────────────────▼─────────────────────────────────────────┐  │
+│  │ 4. RouteProgressTracker & In-Flight Replanner                                    │  │
+│  │    - Spatial tracking: Current, Previous, Next, Remaining Hops, Completion %     │  │
+│  │    - Dynamic velocity and ETA re-estimation                                      │  │
+│  │    - In-flight shortest path recalculation around failed/blocked intersections   │  │
+│  └────────────────────────────────────────┬─────────────────────────────────────────┘  │
+│                                           │                                            │
+│  ┌────────────────────────────────────────▼─────────────────────────────────────────┐  │
+│  │ 5. SignalTimelineGenerator & Replay Engine                                       │  │
+│  │    - Deterministic transition schedule with monotonic QNX timestamps             │  │
+│  │    - Pre-clearance yellow, all-red hold, green preemption, post-clearance        │  │
+│  │    - Replay engine for offline debugging, drift analysis (Δt), and JSON export   │  │
+│  └────────────────────────────────────────┬─────────────────────────────────────────┘  │
+│                                           │                                            │
+│  ┌────────────────────────────────────────▼─────────────────────────────────────────┐  │
+│  │ 6. ClusterHealthMonitor                                                          │  │
+│  │    - 4 Nodes: COORD_01 (192.168.1.100), INT_A (.101), INT_B (.102), INT_C (.103) │  │
+│  │    - CPU %, RAM (MB/%), Temp (°C), Heartbeat Age (ms), QoS Level, Relay/GPIO     │  │
+│  │    - Composite weighted cluster health score (0.0% - 100.0%) & degraded alerts   │  │
+│  └────────────────────────────────────────┬─────────────────────────────────────────┘  │
+│                                           │                                            │
+│  ┌────────────────────────────────────────▼─────────────────────────────────────────┐  │
+│  │ 7. FaultRecoveryManager (Resilient Autonomous Recovery)                          │  │
+│  │    - Recovers from Comm Failures (Socket auto-reconnect & queue replay)          │  │
+│  │    - Recovers from Watchdog Events (Targeted subsystem reset without reboot)     │  │
+│  │    - Recovers from Node Reboot (Automated active corridor state push)            │  │
+│  │    - Recovers from Network Loss (Optical sensor fallback & post-restore resync)  │  │
+│  │    - Recovers from Corridor Interruption (Dynamic bypass replanning & release)   │  │
+│  │    - SAFE MODE Boundary: Enters ALL_RED strictly when recovery is impossible     │  │
+│  └──────────────────────────────────────────────────────────────────────────────────┘  │
+└────────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 22. Native QNX Neutrino RTOS Subsystem Architecture (Phase 4)
+
+Phase 4 transforms SMART AEGIS into a genuine QNX Neutrino RTOS real-time distributed application on the **Raspberry Pi 4 Model B (4 GB)** running the official **QNX SDP 8.0 Quick Start Image** (`aarch64le`):
+
+```
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│                   PHASE 4: NATIVE QNX NEUTRINO RTOS ARCHITECTURE                       │
+│                                                                                        │
+│  ┌──────────────────────────────────────────────────────────────────────────────────┐  │
+│  │ 1. QNX Resource Manager (/dev/aegis/*) via resmgr_attach()                       │  │
+│  │    - Device Nodes: /dev/aegis/coordinator  • /dev/aegis/intersectionA           │  │
+│  │                    /dev/aegis/intersectionB• /dev/aegis/intersectionC           │  │
+│  │                    /dev/aegis/cluster      • /dev/aegis/system                  │  │
+│  │    - POSIX API: open(), read(), write(), close(), devctl()                       │  │
+│  └────────────────────────────────────────┬─────────────────────────────────────────┘  │
+│                                           │                                            │
+│  ┌────────────────────────────────────────▼─────────────────────────────────────────┐  │
+│  │ 2. Native QNX Synchronous Message Passing (MsgSend/Receive/Reply)                │  │
+│  │    - Blocking rendezvous IPC: Client blocks until Server replies                 │  │
+│  │    - ChannelCreate(0), ConnectAttach(), MsgSend(), MsgReceive(), MsgReply()      │  │
+│  │    - Message Schemas: HEARTBEAT (0x1001), REGISTRATION (0x1002),                 │  │
+│  │                       CORRIDOR_REQUEST (0x1003), SIGNAL_COMMAND (0x1004),        │  │
+│  │                       STATUS_UPDATE (0x1005), RECOVERY_MESSAGE (0x1006)          │  │
+│  └────────────────────────────────────────┬─────────────────────────────────────────┘  │
+│                                           │                                            │
+│  ┌────────────────────────────────────────▼─────────────────────────────────────────┐  │
+│  │ 3. QNX Pulse Management (SIGEV_PULSE Asynchronous Events)                        │  │
+│  │    - Non-blocking microkernel pulse delivery: MsgSendPulse(), MsgReceivePulse()  │  │
+│  │    - Application Pulse Codes: WATCHDOG (1) • HEARTBEAT (2) • TIMEOUT (3) •       │  │
+│  │                               DEADLINE (4) • SHUTDOWN (5) • FAULT_RECOVERY (6) • │  │
+│  │                               INTERRUPT (7)                                      │  │
+│  │    - Thread-safe asynchronous dispatcher loop with callback registration         │  │
+│  └────────────────────────────────────────┬─────────────────────────────────────────┘  │
+│                                           │                                            │
+│  ┌────────────────────────────────────────▼─────────────────────────────────────────┐  │
+│  │ 4. High-Resolution QNX Timers & Microsecond Jitter Statistics                    │  │
+│  │    - timer_create(CLOCK_MONOTONIC, &event, &timerId) with SIGEV_PULSE binding     │  │
+│  │    - Periodic & one-shot arming via timer_settime() with nanosecond precision     │  │
+│  │    - Real-time jitter tracking: min, max, avg (µs) and timer_getoverrun()        │  │
+│  └────────────────────────────────────────┬─────────────────────────────────────────┘  │
+│                                           │                                            │
+│  ┌────────────────────────────────────────▼─────────────────────────────────────────┐  │
+│  │ 5. Real-Time Thread Scheduling Hierarchy (SCHED_FIFO & Prio-Inheritance)         │  │
+│  │    - Priority 30: Coordinator Core Dispatch Thread (Highest Safety Priority)     │  │
+│  │    - Priority 25: Intersection Controller Threads (Real-Time Actuation)          │  │
+│  │    - Priority 21: Dynamic Corridor Release & Timeline Engine                     │  │
+│  │    - Priority 12: Health Monitor & Deadline Supervision                          │  │
+│  │    - Priority 5:  Telemetry, Event Logging & devctl Handlers                     │  │
+│  │    - PrioInheritMutex (PTHREAD_PRIO_INHERIT) eliminating priority inversion      │  │
+│  └────────────────────────────────────────┬─────────────────────────────────────────┘  │
+│                                           │                                            │
+│  ┌────────────────────────────────────────▼─────────────────────────────────────────┐  │
+│  │ 6. GPIO Interrupt-Driven Event Management (BCM2711)                              │  │
+│  │    - InterruptAttachEvent() delivering kernel pulses directly into channel       │  │
+│  │    - Line Mappings: GPIO 12 (IR Approach) • GPIO 13 (IR Departure) •             │  │
+│  │                     GPIO 16 (Emergency Button) • GPIO 24 (Relay Fault)           │  │
+│  │    - Masking, unmasking, detachment, and event trigger telemetry                 │  │
+│  └────────────────────────────────────────┬─────────────────────────────────────────┘  │
+│                                           │                                            │
+│  ┌────────────────────────────────────────▼─────────────────────────────────────────┐  │
+│  │ 7. Industrial devctl() Interface (9 Commands, Magic Class 'A' = 0x41)            │  │
+│  │    - DCMD_AEGIS_GET_SYSTEM_STATUS   • DCMD_AEGIS_GET_NODE_STATUS                 │  │
+│  │    - DCMD_AEGIS_START_CORRIDOR      • DCMD_AEGIS_STOP_CORRIDOR                   │  │
+│  │    - DCMD_AEGIS_RESET_NODE          • DCMD_AEGIS_READ_TELEMETRY                  │  │
+│  │    - DCMD_AEGIS_READ_LOGS           • DCMD_AEGIS_ENABLE_DIAGNOSTICS              │  │
+│  │    - DCMD_AEGIS_RUN_SELF_TEST                                                    │  │
+│  └────────────────────────────────────────┬─────────────────────────────────────────┘  │
+│                                           │                                            │
+│  ┌────────────────────────────────────────▼─────────────────────────────────────────┐  │
+│  │ 8. Native QNX Diagnostics & Health Telemetry (QnxDiagnostics)                    │  │
+│  │    - Aggregates channel counts, coids, thread priority audit, pulse metrics,     │  │
+│  │      timer jitter, interrupt counters, latency, memory, and CPU temperature      │  │
+│  │    - Structured JSON report export and live formatted ASCII dashboard tables     │  │
+│  └──────────────────────────────────────────────────────────────────────────────────┘  │
+└────────────────────────────────────────────────────────────────────────────────────────┘
+```
 ```

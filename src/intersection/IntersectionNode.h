@@ -12,6 +12,7 @@
 
 #include "SignalController.h"
 #include "HeartbeatManager.h"
+#include "traffic_signal/TrafficSignalNode.h"
 #include "communication/SocketClient.h"
 #include "communication/Message.h"
 #include <string>
@@ -112,19 +113,27 @@ public:
     void HandleIncomingMessage(const communication::Message& message);
 
     /**
-     * @brief Process and apply a coordinator control command to the SignalController.
+     * @brief Process and apply a coordinator control command.
      *
      * Supported Commands:
-     * - SET_GREEN
      * - SET_RED
-     * - SET_NORMAL
-     * - EMERGENCY_MODE_ON
-     * - EMERGENCY_MODE_OFF
+     * - SET_YELLOW
+     * - SET_GREEN
+     * - SET_ALL_RED
+     * - SET_NORMAL, EMERGENCY_MODE_ON, EMERGENCY_MODE_OFF
      *
      * @param commandMessage Message containing the command payload.
      * @return true if command recognized and executed; false otherwise.
      */
     bool ProcessCoordinatorCommand(const communication::Message& commandMessage);
+
+    /**
+     * @brief Process and apply a coordinator control command string directly.
+     * @param commandName Command name (e.g. "SET_GREEN", "SET_RED").
+     * @param reason Optional operational rationale for the command.
+     * @return true if executed; false if invalid or rejected.
+     */
+    bool ProcessCoordinatorCommand(const std::string& commandName, const std::string& reason = "");
 
     // =========================================================================
     // Inspection & Subsystem Accessors
@@ -147,7 +156,19 @@ public:
     SignalController& GetSignalController() noexcept { return m_signalController; }
     const SignalController& GetSignalController() const noexcept { return m_signalController; }
 
+    traffic_signal::TrafficSignalNode& GetTrafficSignalNode() noexcept { return m_trafficSignalNode; }
+    const traffic_signal::TrafficSignalNode& GetTrafficSignalNode() const noexcept { return m_trafficSignalNode; }
+
     void SetCommandCallback(CommandCallback callback);
+
+    using AckCallback = std::function<void(const communication::Message& ackMsg)>;
+    void SetAckCallback(AckCallback callback);
+
+    // Phase 6B Inspection APIs
+    size_t GetCommandsReceivedCount() const;
+    std::vector<std::string> GetReceivedCommands() const;
+    std::string GetLastReceivedCommand() const;
+    void ClearReceivedCommands();
 
 private:
     void OnConnectionStateChanged(bool connected);
@@ -165,12 +186,21 @@ private:
     communication::SocketClient m_socketClient{};
     HeartbeatManager m_heartbeatManager{};
     SignalController m_signalController{};
+    traffic_signal::TrafficSignalNode m_trafficSignalNode;
 
     mutable std::mutex m_ackMutex{};
     std::condition_variable m_ackCv{};
 
     mutable std::mutex m_configMutex{};
     CommandCallback m_commandCallback{nullptr};
+
+    mutable std::mutex m_ackCbMutex{};
+    AckCallback m_ackCallback{nullptr};
+
+    mutable std::mutex m_receivedCommandsMutex{};
+    size_t m_commandsReceivedCount{0};
+    std::string m_lastReceivedCommand{""};
+    std::vector<std::string> m_receivedCommands{};
 };
 
 } // namespace intersection

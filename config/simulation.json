@@ -1,0 +1,128 @@
+{
+  "simulation": {
+    "speed": 1.0,
+    "demoMode": "MODE_1_SOFTWARE_SIMULATION",
+    "tickRateHz": 20,
+    "timeOfDay": "08:30:00",
+    "weather": "CLEAR",
+    "baseTrafficDensity": 0.45
+  },
+  "intersections": [
+    {
+      "id": "INT_A",
+      "name": "Brigade Road / MG Road",
+      "latitude": 12.9716,
+      "longitude": 77.5946,
+      "cycleDurationSec": 60,
+      "approachSensors": true,
+      "departureSensors": true
+    },
+    {
+      "id": "INT_B",
+      "name": "MG Road / Residency Road",
+      "latitude": 12.9725,
+      "longitude": 77.5958,
+      "cycleDurationSec": 60,
+      "approachSensors": true,
+      "departureSensors": true
+    },
+    {
+      "id": "INT_C",
+      "name": "Hospital Approach Avenue",
+      "latitude": 12.9738,
+      "longitude": 77.5972,
+      "cycleDurationSec": 60,
+      "approachSensors": true,
+      "departureSensors": true
+    }
+  ],
+  "hospitals": [
+    {
+      "id": "HOSP_CITY_TRAUMA",
+      "name": "City Trauma Center",
+      "latitude": 12.9750,
+      "longitude": 77.5985,
+      "traumaLevel": 1,
+      "icuBeds": 12,
+      "edBeds": 24,
+      "doctorsOnDuty": 8,
+      "diverting": false
+    },
+    {
+      "id": "HOSP_METRO_GENERAL",
+      "name": "Metro General Hospital",
+      "latitude": 12.9690,
+      "longitude": 77.5910,
+      "traumaLevel": 2,
+      "icuBeds": 16,
+      "edBeds": 32,
+      "doctorsOnDuty": 10,
+      "diverting": false
+    },
+    {
+      "id": "HOSP_ST_JUDE",
+      "name": "St. Jude Heart Institute",
+      "latitude": 12.9765,
+      "longitude": 77.5995,
+      "traumaLevel": 3,
+      "icuBeds": 8,
+      "edBeds": 16,
+      "doctorsOnDuty": 5,
+      "diverting": false
+    }
+  ],
+  "ambulanceStations": [
+    {
+      "id": "AMB_STATION_1",
+      "name": "Central Municipal Depot",
+      "latitude": 12.9680,
+      "longitude": 77.5900,
+      "units": ["AMB_01", "AMB_02"]
+    },
+    {
+      "id": "AMB_STATION_2",
+      "name": "East Sector Outpost",
+      "latitude": 12.9770,
+      "longitude": 77.6010,
+      "units": ["AMB_03"]
+    }
+  ],
+  "roadEdges": [
+    {
+      "from": "AMB_STATION_1",
+      "to": "INT_A",
+      "lengthMeters": 650,
+      "speedLimitKmh": 50,
+      "lanes": 2
+    },
+    {
+      "from": "INT_A",
+      "to": "INT_B",
+      "lengthMeters": 420,
+      "speedLimitKmh": 50,
+      "lanes": 3
+    },
+    {
+      "from": "INT_B",
+      "to": "INT_C",
+      "lengthMeters": 480,
+      "speedLimitKmh": 50,
+      "lanes": 3
+    },
+    {
+      "from": "INT_C",
+      "to": "HOSP_CITY_TRAUMA",
+      "lengthMeters": 350,
+      "speedLimitKmh": 40,
+      "lanes": 2
+    },
+    {
+      "from": "HOSP_CITY_TRAUMA",
+      "to": "HOSP_ST_JUDE",
+      "lengthMeters": 280,
+      "speedLimitKmh": 40,
+      "lanes": 2
+    }
+  ]
+}
+

@@ -1,0 +1,35 @@
+{
+  "nodeId": "COORDINATOR",
+  "role": "COORDINATOR",
+  "intersectionName": "CENTRAL_COORDINATOR",
+  "ipAddress": "127.0.0.1",
+  "port": 9000,
+  "coordinatorAddress": "127.0.0.1",
+  "coordinatorPort": 9000,
+  "heartbeatIntervalMs": 1000,
+  "reconnectIntervalMs": 2000,
+  "connectTimeoutMs": 3000,
+  "loggingLevel": "INFO",
+  "gpioEnabled": true,
+  "simulationEnabled": true,
+  "logDirectory": "logs",
+  "expectedNodes": [
+    "INT_A",
+    "INT_B",
+    "INT_C"
+  ],
+  "gpioMapping": {
+    "redPin": 17,
+    "yellowPin": 27,
+    "greenPin": 22,
+    "nsGreenPin": 23,
+    "ewGreenPin": 24,
+    "pedWalkPin": 25,
+    "pedDontWalkPin": 5,
+    "preemptStrobePin": 26,
+    "irSensorNorthSouth": 12,
+    "irSensorEastWest": 13,
+    "emergencyOverrideButton": 16,
+    "buzzerOutput": 6
+  }
+}

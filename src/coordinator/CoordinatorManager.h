@@ -44,6 +44,18 @@ struct ConnectedNodeInfo {
 };
 
 /**
+ * @brief Record representing an acknowledgement returned by an intersection for a command (Phase 6B).
+ */
+struct SignalCommandAck {
+    std::string intersectionId{""};
+    std::string currentState{"RED"};
+    std::string status{"OK"}; // "OK" or "ERROR"
+    std::string command{""};
+    std::string rawLog{""};
+    uint64_t timestampMs{0};
+};
+
+/**
  * @brief Central manager governing coordinator foundation subsystems.
  */
 class CoordinatorManager {
@@ -264,12 +276,59 @@ public:
      */
     void PrintNetworkStatus() const;
 
+    // =========================================================================
+    // Traffic Signal Command & Control Pipeline (Phase 6B)
+    // =========================================================================
+
+    /**
+     * @brief Issue a traffic signal command to a specific intersection node (Phase 6B).
+     *
+     * Supported commands:
+     * - "SET_RED"
+     * - "SET_YELLOW"
+     * - "SET_GREEN"
+     * - "SET_ALL_RED"
+     *
+     * Transmits command to intersection, logs [COMMAND] in the specified 5-line format,
+     * and returns true if message was sent.
+     *
+     * @param intersectionId Target intersection identifier (e.g. "INT_A").
+     * @param command Command string to issue.
+     * @param reason Operational rationale or trigger for the command.
+     * @return true if transmitted successfully; false otherwise.
+     */
+    bool SendTrafficSignalCommand(const std::string& intersectionId,
+                                  const std::string& command,
+                                  const std::string& reason = "Coordinator Manual Command");
+
+    static std::string FormatCommandLog(const std::string& coordinatorId,
+                                        const std::string& destination,
+                                        const std::string& command,
+                                        const std::string& reason);
+
+    static std::string FormatAckLog(const std::string& intersectionId,
+                                    const std::string& currentState);
+
+    std::vector<std::string> GetCommandLogs() const;
+    std::string GetLastCommandLog() const;
+    void ClearCommandLogs();
+
+    std::vector<SignalCommandAck> GetReceivedAcks() const;
+    size_t GetReceivedAcksCount() const;
+    std::string GetLastAckLog() const;
+    void ClearReceivedAcks();
+
+    bool WaitForAck(const std::string& intersectionId,
+                    uint32_t timeoutMs = 2000,
+                    SignalCommandAck* outAck = nullptr);
+
 private:
     void DispatchWorkerLoop();
     void DispatchEvent(const CoordinatorEvent& event);
     void HandleRegister(int clientId, const communication::Message& msg);
     void HandleHeartbeat(int clientId, const communication::Message& msg);
     void HandleSignalStatus(int clientId, const communication::Message& msg);
+    void HandleAck(int clientId, const communication::Message& msg);
 
     static std::string DetermineRoleFromNodeId(const std::string& nodeId);
     static std::string NormalizeRole(const std::string& rawRole, const std::string& nodeId);
@@ -298,6 +357,15 @@ private:
     std::unordered_map<std::string, ConnectedNodeInfo> m_connectedNodes{};
     std::vector<std::string> m_nodeDisplayOrder{};
     std::unordered_map<int, std::string> m_clientIdToNodeId{};
+
+    // Phase 6B Command Logging and ACK Tracking
+    mutable std::mutex m_commandLogsMutex{};
+    std::vector<std::string> m_commandLogs{};
+
+    mutable std::mutex m_acksMutex{};
+    std::condition_variable m_acksCv{};
+    std::vector<SignalCommandAck> m_receivedAcks{};
+    std::string m_lastAckLog{""};
 };
 
 /**
