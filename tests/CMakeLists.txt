@@ -884,6 +884,110 @@ target_link_libraries(test_phase4_native_qnx PRIVATE
 )
 add_test(NAME test_phase4_native_qnx COMMAND test_phase4_native_qnx)
 
+add_executable(test_coordinator_tcp_server unit/test_coordinator_tcp_server.cpp)
+target_link_libraries(test_coordinator_tcp_server PRIVATE
+    coordinator_server_lib
+    Threads::Threads
+)
+add_test(NAME test_coordinator_tcp_server COMMAND test_coordinator_tcp_server)
+
+add_executable(test_traffic_node unit/test_traffic_node.cpp)
+target_link_libraries(test_traffic_node PRIVATE
+    traffic_node_client_lib
+    coordinator_server_lib
+    Threads::Threads
+)
+add_test(NAME test_traffic_node COMMAND test_traffic_node)
+
+add_executable(test_coordinator_intelligence unit/test_coordinator_intelligence.cpp)
+target_link_libraries(test_coordinator_intelligence PRIVATE
+    coordinator_intel_lib
+    coordinator_server_lib
+    Threads::Threads
+)
+add_test(NAME test_coordinator_intelligence COMMAND test_coordinator_intelligence)
+
+add_executable(test_coordinator_orchestration unit/test_coordinator_orchestration.cpp)
+target_link_libraries(test_coordinator_orchestration PRIVATE
+    coordinator_orchestration_lib
+    coordinator_intel_lib
+    coordinator_server_lib
+    Threads::Threads
+)
+add_test(NAME test_coordinator_orchestration COMMAND test_coordinator_orchestration)
+
+add_executable(test_control_center unit/test_control_center.cpp)
+target_link_libraries(test_control_center PRIVATE
+    coordinator_phase6_lib
+    coordinator_orchestration_lib
+    coordinator_intel_lib
+    coordinator_server_lib
+    Threads::Threads
+)
+add_test(NAME test_control_center COMMAND test_control_center)
+
+add_executable(test_road_perception unit/test_road_perception.cpp)
+target_link_libraries(test_road_perception PRIVATE
+    coordinator_phase7_lib
+    coordinator_phase6_lib
+    coordinator_orchestration_lib
+    coordinator_intel_lib
+    coordinator_server_lib
+    Threads::Threads
+)
+add_test(NAME test_road_perception COMMAND test_road_perception)
+
+add_executable(test_digital_twin_operations_center unit/test_digital_twin_operations_center.cpp)
+target_link_libraries(test_digital_twin_operations_center PRIVATE
+    coordinator_phase8_lib
+    coordinator_phase7_lib
+    coordinator_phase6_lib
+    coordinator_orchestration_lib
+    coordinator_intel_lib
+    coordinator_server_lib
+    Threads::Threads
+)
+add_test(NAME test_digital_twin_operations_center COMMAND test_digital_twin_operations_center)
+
+add_executable(test_production_reliability unit/test_production_reliability.cpp)
+target_link_libraries(test_production_reliability PRIVATE
+    coordinator_phase9_lib
+    coordinator_phase8_lib
+    coordinator_phase7_lib
+    coordinator_phase6_lib
+    coordinator_orchestration_lib
+    coordinator_intel_lib
+    coordinator_server_lib
+    Threads::Threads
+)
+add_test(NAME test_production_reliability COMMAND test_production_reliability)
+
+add_executable(test_system_vve unit/test_system_vve.cpp)
+target_link_libraries(test_system_vve PRIVATE
+    coordinator_phase9_lib
+    coordinator_phase8_lib
+    coordinator_phase7_lib
+    coordinator_phase6_lib
+    coordinator_orchestration_lib
+    coordinator_intel_lib
+    coordinator_server_lib
+    Threads::Threads
+)
+add_test(NAME test_system_vve COMMAND test_system_vve)
+
+add_executable(test_cluster_deployment_hardware unit/test_cluster_deployment_hardware.cpp)
+target_link_libraries(test_cluster_deployment_hardware PRIVATE
+    coordinator_phase9_lib
+    coordinator_phase8_lib
+    coordinator_phase7_lib
+    coordinator_phase6_lib
+    coordinator_orchestration_lib
+    coordinator_intel_lib
+    coordinator_server_lib
+    Threads::Threads
+)
+add_test(NAME test_cluster_deployment_hardware COMMAND test_cluster_deployment_hardware)
+
 
 
 

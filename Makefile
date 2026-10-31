@@ -4,7 +4,7 @@
 
 CXX ?= clang++
 CXXFLAGS ?= -std=c++17 -Wall -Wextra -Wpedantic -Wconversion -Wshadow -Wnon-virtual-dtor
-INCLUDES = -Iinclude -Isrc -Inetwork
+INCLUDES = -Iinclude -Isrc -Inetwork -I.
 
 BUILD_TYPE ?= Debug
 ifeq ($(BUILD_TYPE),Release)
@@ -140,6 +140,16 @@ PHASE4_SRCS = src/qnx/QnxDevctl.cpp \
               src/qnx/QnxDiagnostics.cpp
 QNX_NET_SRCS = network/message.cpp network/tcp_server.cpp network/tcp_client.cpp
 
+# Phase 2 Coordinator TCP Server Sources
+COORD_P2_SRCS = common/utils/TimeUtils.cpp \
+                common/utils/ThreadUtils.cpp \
+                common/protocol/Packet.cpp \
+                common/config/ServerConfig.cpp \
+                common/network/TcpSocket.cpp \
+                coordinator/logger/CoordinatorLogger.cpp \
+                coordinator/server/ClientSession.cpp \
+                coordinator/server/CoordinatorServer.cpp
+
 ALL_SRCS = $(COMMON_SRCS) $(CONFIG_SRCS) $(LOGGER_SRCS) $(SAFETY_SRCS) $(NETWORK_SRCS) \
            $(COMM_MODULE_SRCS) $(SCHED_SRCS) $(ROUTE_SRCS) $(COORD_SRCS) $(AMB_SRCS) $(TRAFFIC_SRCS) \
            $(INTERSECTION_SRCS) $(SYSTEM_SRCS) $(MEDICAL_SRCS) $(SCHEDULER_SRCS) $(CONTROL_SRCS) $(HOSP_SRCS) $(TRFDASH_SRCS) \
@@ -147,6 +157,306 @@ ALL_SRCS = $(COMMON_SRCS) $(CONFIG_SRCS) $(LOGGER_SRCS) $(SAFETY_SRCS) $(NETWORK
 
 ALL_OBJS = $(patsubst src/%.cpp,$(OBJ_DIR)/%.o,$(ALL_SRCS))
 QNX_NET_OBJS = $(patsubst network/%.cpp,$(OBJ_DIR)/qnx_network/%.o,$(QNX_NET_SRCS))
+COORD_P2_OBJS = $(OBJ_DIR)/common/utils/TimeUtils.o \
+                $(OBJ_DIR)/common/utils/ThreadUtils.o \
+                $(OBJ_DIR)/common/protocol/Packet.o \
+                $(OBJ_DIR)/common/config/ServerConfig.o \
+                $(OBJ_DIR)/common/network/TcpSocket.o \
+                $(OBJ_DIR)/coordinator/logger/CoordinatorLogger.o \
+                $(OBJ_DIR)/coordinator/server/ClientSession.o \
+                $(OBJ_DIR)/coordinator/server/CoordinatorServer.o
+
+# Phase 3 Traffic Signal Node Sources
+TRAFFIC_NODE_P3_SRCS = traffic_node/config/TrafficNodeConfig.cpp \
+                       traffic_node/logger/TrafficLogger.cpp \
+                       traffic_node/gpio/MockGpioDriver.cpp \
+                       traffic_node/gpio/Rpi4GpioDriver.cpp \
+                       traffic_node/relay_controller/RelayController.cpp \
+                       traffic_node/lamp_controller/LampController.cpp \
+                       traffic_node/signal_controller/TrafficSignalFSM.cpp \
+                       traffic_node/signal_controller/SignalController.cpp \
+                       traffic_node/watchdog/NodeWatchdog.cpp \
+                       traffic_node/client/ConnectionManager.cpp \
+                       traffic_node/client/HeartbeatManager.cpp \
+                       traffic_node/client/TrafficClient.cpp \
+                       traffic_node/protocol/TrafficCommandDispatcher.cpp
+
+TRAFFIC_NODE_P3_OBJS = $(OBJ_DIR)/traffic_node/config/TrafficNodeConfig.o \
+                       $(OBJ_DIR)/traffic_node/logger/TrafficLogger.o \
+                       $(OBJ_DIR)/traffic_node/gpio/MockGpioDriver.o \
+                       $(OBJ_DIR)/traffic_node/gpio/Rpi4GpioDriver.o \
+                       $(OBJ_DIR)/traffic_node/relay_controller/RelayController.o \
+                       $(OBJ_DIR)/traffic_node/lamp_controller/LampController.o \
+                       $(OBJ_DIR)/traffic_node/signal_controller/TrafficSignalFSM.o \
+                       $(OBJ_DIR)/traffic_node/signal_controller/SignalController.o \
+                       $(OBJ_DIR)/traffic_node/watchdog/NodeWatchdog.o \
+                       $(OBJ_DIR)/traffic_node/client/ConnectionManager.o \
+                       $(OBJ_DIR)/traffic_node/client/HeartbeatManager.o \
+                       $(OBJ_DIR)/traffic_node/client/TrafficClient.o \
+                       $(OBJ_DIR)/traffic_node/protocol/TrafficCommandDispatcher.o
+
+# Phase 4 Coordinator Intelligence Sources
+COORD_INTEL_SRCS = coordinator/intelligence/graph/RoadGraph.cpp \
+                   coordinator/intelligence/planner/DijkstraRoutePlanner.cpp \
+                   coordinator/intelligence/eta/ContinuousETAEngine.cpp \
+                   coordinator/intelligence/scheduler/PriorityScheduler.cpp \
+                   coordinator/intelligence/corridor/GreenCorridorPlanner.cpp \
+                   coordinator/intelligence/execution/ExecutionPlanGenerator.cpp \
+                   coordinator/intelligence/safety/SafetyPolicyEngine.cpp \
+                   coordinator/intelligence/config/IntelligenceConfig.cpp
+
+COORD_INTEL_OBJS = $(OBJ_DIR)/coordinator/intelligence/graph/RoadGraph.o \
+                   $(OBJ_DIR)/coordinator/intelligence/planner/DijkstraRoutePlanner.o \
+                   $(OBJ_DIR)/coordinator/intelligence/eta/ContinuousETAEngine.o \
+                   $(OBJ_DIR)/coordinator/intelligence/scheduler/PriorityScheduler.o \
+                   $(OBJ_DIR)/coordinator/intelligence/corridor/GreenCorridorPlanner.o \
+                   $(OBJ_DIR)/coordinator/intelligence/execution/ExecutionPlanGenerator.o \
+                   $(OBJ_DIR)/coordinator/intelligence/safety/SafetyPolicyEngine.o \
+                   $(OBJ_DIR)/coordinator/intelligence/config/IntelligenceConfig.o
+
+# Phase 5 Coordinator Orchestration Sources
+COORD_ORCHESTRATION_SRCS = coordinator/orchestration/state/CoordinatorStateManager.cpp \
+                          coordinator/orchestration/event_bus/EventBus.cpp \
+                          coordinator/orchestration/session/EmergencySessionManager.cpp \
+                          coordinator/orchestration/fsm/CoordinatorFSM.cpp \
+                          coordinator/orchestration/dispatcher/ExecutionDispatcher.cpp \
+                          coordinator/orchestration/sync/NodeClockTracker.cpp \
+                          coordinator/orchestration/monitor/NodeHealthMonitor.cpp \
+                          coordinator/orchestration/monitor/ExecutionMonitor.cpp \
+                          coordinator/orchestration/recovery/RecoveryManager.cpp \
+                          coordinator/orchestration/config/OrchestrationConfig.cpp
+
+COORD_ORCHESTRATION_OBJS = $(OBJ_DIR)/coordinator/orchestration/state/CoordinatorStateManager.o \
+                          $(OBJ_DIR)/coordinator/orchestration/event_bus/EventBus.o \
+                          $(OBJ_DIR)/coordinator/orchestration/session/EmergencySessionManager.o \
+                          $(OBJ_DIR)/coordinator/orchestration/fsm/CoordinatorFSM.o \
+                          $(OBJ_DIR)/coordinator/orchestration/dispatcher/ExecutionDispatcher.o \
+                          $(OBJ_DIR)/coordinator/orchestration/sync/NodeClockTracker.o \
+                          $(OBJ_DIR)/coordinator/orchestration/monitor/NodeHealthMonitor.o \
+                          $(OBJ_DIR)/coordinator/orchestration/monitor/ExecutionMonitor.o \
+                          $(OBJ_DIR)/coordinator/orchestration/recovery/RecoveryManager.o \
+                          $(OBJ_DIR)/coordinator/orchestration/config/OrchestrationConfig.o
+
+# Phase 6 Control Center & Hospital Coordination Sources
+COORD_PHASE6_SRCS = coordinator/control_center/EmergencyValidator.cpp \
+                    coordinator/control_center/EmergencyPriorityEngine.cpp \
+                    coordinator/control_center/IncidentManager.cpp \
+                    coordinator/control_center/ResourceAllocator.cpp \
+                    coordinator/control_center/DispatcherConsole.cpp \
+                    coordinator/control_center/EmergencyControlCenter.cpp \
+                    coordinator/hospital/HospitalRegistry.cpp \
+                    coordinator/hospital/HospitalSelectionEngine.cpp \
+                    coordinator/hospital/BedAvailabilityManager.cpp \
+                    coordinator/hospital/HospitalNotificationManager.cpp \
+                    coordinator/hospital/DoctorPreparationManager.cpp \
+                    coordinator/hospital/PatientHandoverManager.cpp
+
+COORD_PHASE6_OBJS = $(OBJ_DIR)/coordinator/control_center/EmergencyValidator.o \
+                    $(OBJ_DIR)/coordinator/control_center/EmergencyPriorityEngine.o \
+                    $(OBJ_DIR)/coordinator/control_center/IncidentManager.o \
+                    $(OBJ_DIR)/coordinator/control_center/ResourceAllocator.o \
+                    $(OBJ_DIR)/coordinator/control_center/DispatcherConsole.o \
+                    $(OBJ_DIR)/coordinator/control_center/EmergencyControlCenter.o \
+                    $(OBJ_DIR)/coordinator/hospital/HospitalRegistry.o \
+                    $(OBJ_DIR)/coordinator/hospital/HospitalSelectionEngine.o \
+                    $(OBJ_DIR)/coordinator/hospital/BedAvailabilityManager.o \
+                    $(OBJ_DIR)/coordinator/hospital/HospitalNotificationManager.o \
+                    $(OBJ_DIR)/coordinator/hospital/DoctorPreparationManager.o \
+                    $(OBJ_DIR)/coordinator/hospital/PatientHandoverManager.o
+
+# Phase 7 Intelligent Road Situation Awareness (IRSA) Sources
+COORD_PHASE7_SRCS = coordinator/perception/RoadConditionEvent.cpp \
+                    coordinator/perception/CameraRegistry.cpp \
+                    coordinator/perception/CameraFeedManager.cpp \
+                    coordinator/perception/VideoStreamManager.cpp \
+                    coordinator/perception/RoadConfidenceEngine.cpp \
+                    coordinator/perception/RoadEventPublisher.cpp \
+                    coordinator/perception/RoadSituationAwarenessEngine.cpp \
+                    coordinator/perception/CoordinatorIntegration.cpp \
+                    coordinator/perception/analytics/TrafficDensityAnalyzer.cpp \
+                    coordinator/perception/analytics/QueueLengthEstimator.cpp \
+                    coordinator/perception/analytics/LaneOccupancyEstimator.cpp \
+                    coordinator/perception/analytics/RoadHealthAnalyzer.cpp \
+                    coordinator/perception/analytics/IncidentDetectionEngine.cpp \
+                    coordinator/perception/analytics/EmergencyVehicleDetectionEngine.cpp \
+                    coordinator/perception/analytics/RoadBlockageAnalyzer.cpp \
+                    coordinator/perception/analytics/CongestionAnalyzer.cpp \
+                    coordinator/perception/analytics/TrafficPredictionEngine.cpp \
+                    coordinator/perception/analytics/CameraHealthMonitor.cpp \
+                    coordinator/perception/analytics/RoadSuitabilityCalculator.cpp \
+                    coordinator/perception/analytics/HistoricalTrafficAnalytics.cpp \
+                    coordinator/perception/digital_twin/PerceptionDigitalTwinBridge.cpp
+
+COORD_PHASE7_OBJS = $(OBJ_DIR)/coordinator/perception/RoadConditionEvent.o \
+                    $(OBJ_DIR)/coordinator/perception/CameraRegistry.o \
+                    $(OBJ_DIR)/coordinator/perception/CameraFeedManager.o \
+                    $(OBJ_DIR)/coordinator/perception/VideoStreamManager.o \
+                    $(OBJ_DIR)/coordinator/perception/RoadConfidenceEngine.o \
+                    $(OBJ_DIR)/coordinator/perception/RoadEventPublisher.o \
+                    $(OBJ_DIR)/coordinator/perception/RoadSituationAwarenessEngine.o \
+                    $(OBJ_DIR)/coordinator/perception/CoordinatorIntegration.o \
+                    $(OBJ_DIR)/coordinator/perception/analytics/TrafficDensityAnalyzer.o \
+                    $(OBJ_DIR)/coordinator/perception/analytics/QueueLengthEstimator.o \
+                    $(OBJ_DIR)/coordinator/perception/analytics/LaneOccupancyEstimator.o \
+                    $(OBJ_DIR)/coordinator/perception/analytics/RoadHealthAnalyzer.o \
+                    $(OBJ_DIR)/coordinator/perception/analytics/IncidentDetectionEngine.o \
+                    $(OBJ_DIR)/coordinator/perception/analytics/EmergencyVehicleDetectionEngine.o \
+                    $(OBJ_DIR)/coordinator/perception/analytics/RoadBlockageAnalyzer.o \
+                    $(OBJ_DIR)/coordinator/perception/analytics/CongestionAnalyzer.o \
+                    $(OBJ_DIR)/coordinator/perception/analytics/TrafficPredictionEngine.o \
+                    $(OBJ_DIR)/coordinator/perception/analytics/CameraHealthMonitor.o \
+                    $(OBJ_DIR)/coordinator/perception/analytics/RoadSuitabilityCalculator.o \
+                    $(OBJ_DIR)/coordinator/perception/analytics/HistoricalTrafficAnalytics.o \
+                    $(OBJ_DIR)/coordinator/perception/digital_twin/PerceptionDigitalTwinBridge.o
+
+# Phase 8 Integrated Digital Twin & Operations Center Sources
+PHASE8_DT_SRCS = digital_twin/CityModel.cpp \
+                 digital_twin/SimulationClock.cpp \
+                 digital_twin/TelemetryCollector.cpp \
+                 digital_twin/DashboardEventBridge.cpp \
+                 digital_twin/MissionTimeline.cpp \
+                 digital_twin/MissionReplayEngine.cpp \
+                 digital_twin/ScenarioPlaybackController.cpp \
+                 digital_twin/SimulationScenarioManager.cpp \
+                 digital_twin/visualizers/AmbulanceVisualizer.cpp \
+                 digital_twin/visualizers/TrafficSignalVisualizer.cpp \
+                 digital_twin/visualizers/CorridorVisualizer.cpp \
+                 digital_twin/visualizers/CameraVisualizer.cpp \
+                 digital_twin/visualizers/HospitalVisualizer.cpp \
+                 digital_twin/visualizers/CoordinatorVisualizer.cpp \
+                 digital_twin/PerformanceMonitor.cpp \
+                 digital_twin/StatisticsEngine.cpp \
+                 digital_twin/BenchmarkRecorder.cpp \
+                 digital_twin/ReportExporter.cpp \
+                 digital_twin/DashboardController.cpp \
+                 digital_twin/DigitalTwinEngine.cpp
+
+PHASE8_DT_OBJS = $(OBJ_DIR)/digital_twin/CityModel.o \
+                 $(OBJ_DIR)/digital_twin/SimulationClock.o \
+                 $(OBJ_DIR)/digital_twin/TelemetryCollector.o \
+                 $(OBJ_DIR)/digital_twin/DashboardEventBridge.o \
+                 $(OBJ_DIR)/digital_twin/MissionTimeline.o \
+                 $(OBJ_DIR)/digital_twin/MissionReplayEngine.o \
+                 $(OBJ_DIR)/digital_twin/ScenarioPlaybackController.o \
+                 $(OBJ_DIR)/digital_twin/SimulationScenarioManager.o \
+                 $(OBJ_DIR)/digital_twin/visualizers/AmbulanceVisualizer.o \
+                 $(OBJ_DIR)/digital_twin/visualizers/TrafficSignalVisualizer.o \
+                 $(OBJ_DIR)/digital_twin/visualizers/CorridorVisualizer.o \
+                 $(OBJ_DIR)/digital_twin/visualizers/CameraVisualizer.o \
+                 $(OBJ_DIR)/digital_twin/visualizers/HospitalVisualizer.o \
+                 $(OBJ_DIR)/digital_twin/visualizers/CoordinatorVisualizer.o \
+                 $(OBJ_DIR)/digital_twin/PerformanceMonitor.o \
+                 $(OBJ_DIR)/digital_twin/StatisticsEngine.o \
+                 $(OBJ_DIR)/digital_twin/BenchmarkRecorder.o \
+                 $(OBJ_DIR)/digital_twin/ReportExporter.o \
+                 $(OBJ_DIR)/digital_twin/DashboardController.o \
+                 $(OBJ_DIR)/digital_twin/DigitalTwinEngine.o
+
+# Phase 9 Production Readiness, Reliability, Safety & Deployment Sources
+PHASE9_PROD_SRCS = production/health/HealthSupervisor.cpp \
+                   production/health/WatchdogManager.cpp \
+                   production/health/RuntimeDiagnostics.cpp \
+                   production/health/HeartbeatSupervisor.cpp \
+                   production/fault_tolerance/NodeRecoveryManager.cpp \
+                   production/fault_tolerance/MissionContinuityManager.cpp \
+                   production/fault_tolerance/LifecycleManager.cpp \
+                   production/communication/ReliableChannel.cpp \
+                   production/communication/PacketValidator.cpp \
+                   production/security/NodeAuthenticator.cpp \
+                   production/security/MessageSecurityGuard.cpp \
+                   production/security/SecurityAuditLogger.cpp \
+                   production/config/ProductionConfigManager.cpp \
+                   production/config/VersionManager.cpp \
+                   production/reliability/DeadlockDetector.cpp \
+                   production/reliability/ResourceLeakMonitor.cpp \
+                   production/reliability/SoakTestRunner.cpp \
+                   production/fault_injection/FaultInjector.cpp \
+                   production/benchmark/ProductionBenchmarkReporter.cpp \
+                   production/ProductionEngine.cpp
+
+PHASE9_PROD_OBJS = $(OBJ_DIR)/production/health/HealthSupervisor.o \
+                   $(OBJ_DIR)/production/health/WatchdogManager.o \
+                   $(OBJ_DIR)/production/health/RuntimeDiagnostics.o \
+                   $(OBJ_DIR)/production/health/HeartbeatSupervisor.o \
+                   $(OBJ_DIR)/production/fault_tolerance/NodeRecoveryManager.o \
+                   $(OBJ_DIR)/production/fault_tolerance/MissionContinuityManager.o \
+                   $(OBJ_DIR)/production/fault_tolerance/LifecycleManager.o \
+                   $(OBJ_DIR)/production/communication/ReliableChannel.o \
+                   $(OBJ_DIR)/production/communication/PacketValidator.o \
+                   $(OBJ_DIR)/production/security/NodeAuthenticator.o \
+                   $(OBJ_DIR)/production/security/MessageSecurityGuard.o \
+                   $(OBJ_DIR)/production/security/SecurityAuditLogger.o \
+                   $(OBJ_DIR)/production/config/ProductionConfigManager.o \
+                   $(OBJ_DIR)/production/config/VersionManager.o \
+                   $(OBJ_DIR)/production/reliability/DeadlockDetector.o \
+                   $(OBJ_DIR)/production/reliability/ResourceLeakMonitor.o \
+                   $(OBJ_DIR)/production/reliability/SoakTestRunner.o \
+                   $(OBJ_DIR)/production/fault_injection/FaultInjector.o \
+                   $(OBJ_DIR)/production/benchmark/ProductionBenchmarkReporter.o \
+                   $(OBJ_DIR)/production/ProductionEngine.o
+
+# Phase 11 Raspberry Pi Cluster Deployment & Hardware Integration Sources
+HARDWARE_INTEGRATION_SRCS = hardware_integration/gpio/SymbolicGpioHAL.cpp \
+                            hardware_integration/relay/ProductionRelayDriver.cpp \
+                            hardware_integration/sensor/IRSensorDriver.cpp \
+                            hardware_integration/config/NodeConfigManager.cpp \
+                            hardware_integration/commissioning/CommissioningManager.cpp \
+                            hardware_integration/cluster/ClusterSupervisor.cpp \
+                            hardware_integration/validation/DeploymentValidator.cpp \
+                            hardware_integration/logging/CentralizedDeploymentLogger.cpp
+
+HARDWARE_INTEGRATION_OBJS = $(OBJ_DIR)/hardware_integration/gpio/SymbolicGpioHAL.o \
+                            $(OBJ_DIR)/hardware_integration/relay/ProductionRelayDriver.o \
+                            $(OBJ_DIR)/hardware_integration/sensor/IRSensorDriver.o \
+                            $(OBJ_DIR)/hardware_integration/config/NodeConfigManager.o \
+                            $(OBJ_DIR)/hardware_integration/commissioning/CommissioningManager.o \
+                            $(OBJ_DIR)/hardware_integration/cluster/ClusterSupervisor.o \
+                            $(OBJ_DIR)/hardware_integration/validation/DeploymentValidator.o \
+                            $(OBJ_DIR)/hardware_integration/logging/CentralizedDeploymentLogger.o
+
+# Phase 12 Hardware Demonstration Sources
+HARDWARE_DEMO_SRCS = hardware_integration/demo/BuzzerController.cpp \
+                     hardware_integration/demo/EmergencySwitchDriver.cpp \
+                     hardware_integration/demo/PoliceOverrideSwitchDriver.cpp \
+                     hardware_integration/demo/OledV2XDisplay.cpp \
+                     hardware_integration/demo/Intersection2PriorityDemonstrator.cpp \
+                     hardware_integration/demo/PoliceReplanningCoordinator.cpp \
+                     hardware_integration/demo/HardwareDemoOrchestrator.cpp
+
+HARDWARE_DEMO_OBJS = $(OBJ_DIR)/hardware_integration/demo/BuzzerController.o \
+                     $(OBJ_DIR)/hardware_integration/demo/EmergencySwitchDriver.o \
+                     $(OBJ_DIR)/hardware_integration/demo/PoliceOverrideSwitchDriver.o \
+                     $(OBJ_DIR)/hardware_integration/demo/OledV2XDisplay.o \
+                     $(OBJ_DIR)/hardware_integration/demo/Intersection2PriorityDemonstrator.o \
+                     $(OBJ_DIR)/hardware_integration/demo/PoliceReplanningCoordinator.o \
+                     $(OBJ_DIR)/hardware_integration/demo/HardwareDemoOrchestrator.o
+
+# Phase 13 Operations, Monitoring & Command Center Sources
+COMMAND_CENTER_SRCS = command_center/fleet/EmsFleetManager.cpp \
+                      command_center/tracking/LiveAmbulanceTracker.cpp \
+                      command_center/mission/MissionDatabase.cpp \
+                      command_center/hospital/HospitalOperationsDashboard.cpp \
+                      command_center/traffic/TrafficOperationsDashboard.cpp \
+                      command_center/cluster/ClusterMonitor.cpp \
+                      command_center/health/SystemHealthMonitor.cpp \
+                      command_center/analytics/RealTimeAnalyticsEngine.cpp \
+                      command_center/replay/MissionReplayController.cpp \
+                      command_center/dashboard/CommandCenterConsole.cpp \
+                      command_center/bridge/CommandCenterEventBridge.cpp \
+                      command_center/CommandCenterFacade.cpp
+
+COMMAND_CENTER_OBJS = $(OBJ_DIR)/command_center/fleet/EmsFleetManager.o \
+                      $(OBJ_DIR)/command_center/tracking/LiveAmbulanceTracker.o \
+                      $(OBJ_DIR)/command_center/mission/MissionDatabase.o \
+                      $(OBJ_DIR)/command_center/hospital/HospitalOperationsDashboard.o \
+                      $(OBJ_DIR)/command_center/traffic/TrafficOperationsDashboard.o \
+                      $(OBJ_DIR)/command_center/cluster/ClusterMonitor.o \
+                      $(OBJ_DIR)/command_center/health/SystemHealthMonitor.o \
+                      $(OBJ_DIR)/command_center/analytics/RealTimeAnalyticsEngine.o \
+                      $(OBJ_DIR)/command_center/replay/MissionReplayController.o \
+                      $(OBJ_DIR)/command_center/dashboard/CommandCenterConsole.o \
+                      $(OBJ_DIR)/command_center/bridge/CommandCenterEventBridge.o \
+                      $(OBJ_DIR)/command_center/CommandCenterFacade.o
 
 STATIC_LIB = $(LIB_DIR)/libaegis.a
 
@@ -205,12 +515,26 @@ PHASE1_HARDWARE_TEST_BIN = $(BIN_DIR)/test_phase1_real_qnx_hardware
 PHASE2_EMBEDDED_TEST_BIN = $(BIN_DIR)/test_phase2_embedded_production
 PHASE3_CORRIDOR_TEST_BIN = $(BIN_DIR)/test_phase3_corridor_operations
 PHASE4_QNX_TEST_BIN = $(BIN_DIR)/test_phase4_native_qnx
+COORDINATOR_SERVER_BIN = $(BIN_DIR)/coordinator_tcp_server
+COORDINATOR_TCP_TEST_BIN = $(BIN_DIR)/test_coordinator_tcp_server
+TRAFFIC_SIGNAL_NODE_BIN = $(BIN_DIR)/traffic_signal_node
+TRAFFIC_NODE_TEST_BIN = $(BIN_DIR)/test_traffic_node
+COORD_INTEL_TEST_BIN = $(BIN_DIR)/test_coordinator_intelligence
+COORD_ORCHESTRATION_TEST_BIN = $(BIN_DIR)/test_coordinator_orchestration
+CONTROL_CENTER_TEST_BIN = $(BIN_DIR)/test_control_center
+ROAD_PERCEPTION_TEST_BIN = $(BIN_DIR)/test_road_perception
+DIGITAL_TWIN_TEST_BIN = $(BIN_DIR)/test_digital_twin_operations_center
+PRODUCTION_RELIABILITY_TEST_BIN = $(BIN_DIR)/test_production_reliability
+SYSTEM_VVE_TEST_BIN = $(BIN_DIR)/test_system_vve
+CLUSTER_DEPLOYMENT_TEST_BIN = $(BIN_DIR)/test_cluster_deployment_hardware
+PHASE12_DEMO_TEST_BIN = $(BIN_DIR)/test_phase12_hardware_demo
+PHASE13_COMMAND_CENTER_TEST_BIN = $(BIN_DIR)/test_phase13_command_center
 EXAMPLE_SERVER_BIN = $(BIN_DIR)/example_server
 EXAMPLE_CLIENT_BIN = $(BIN_DIR)/example_client
 
 .PHONY: all clean test directories info
 
-all: directories $(STATIC_LIB) $(APPS) $(SMOKE_TEST_BIN) $(FOUNDATION_TEST_BIN) $(COMM_TEST_BIN) $(COMM_MOD_TEST_BIN) $(COORD_TEST_BIN) $(COORD_FOUNDATION_TEST_BIN) $(GREEN_CORRIDOR_TEST_BIN) $(AMB_TEST_BIN) $(TRAFFIC_TEST_BIN) $(INTERSECTION_NODE_TEST_BIN) $(SYSTEM_INTEGRATION_TEST_BIN) $(RPI_DEPLOYMENT_TEST_BIN) $(MEDICAL_TEST_BIN) $(AMB_REG_TEST_BIN) $(CONFLICT_TEST_BIN) $(CONTROL_TEST_BIN) $(LOGGER_TEST_BIN) $(PHASE8_TEST_BIN) $(COORD_MONITORING_TEST_BIN) $(TRAFFIC_SIGNAL_PHASE6A_TEST_BIN) $(COORD_TRAFFIC_SIGNAL_PHASE6B_TEST_BIN) $(EMERGENCY_CORRIDOR_PHASE7A_TEST_BIN) $(GREEN_WAVE_PHASE7B_TEST_BIN) $(PRIORITY_SCHEDULER_PHASE8A_TEST_BIN) $(EMERGENCY_ORCHESTRATOR_PHASE8B_TEST_BIN) $(DYNAMIC_ROUTE_REPLANNER_PHASE9A_TEST_BIN) $(MULTI_CORRIDOR_COORDINATOR_PHASE9B_TEST_BIN) $(DISTRIBUTED_SIGNAL_PHASE10A_TEST_BIN) $(PREDICTIVE_TRAFFIC_PHASE10B_TEST_BIN) $(FLEET_MANAGEMENT_PHASE11A_TEST_BIN) $(HOSPITAL_SELECTION_PHASE11B_TEST_BIN) $(HOSPITAL_RESOURCE_PHASE11B_TEST_BIN) $(MISSION_EXECUTION_PHASE12A_TEST_BIN) $(INCIDENT_COMMAND_PHASE12B_TEST_BIN) $(TRAFFIC_NETWORK_ORCHESTRATOR_PHASE13A_TEST_BIN) $(DISTRIBUTED_CONSENSUS_PHASE13B_TEST_BIN) $(RPI_CLUSTER_PHASE14A_TEST_BIN) $(SYSTEM_DIAGNOSTICS_PHASE14B_TEST_BIN) $(HARDWARE_ABSTRACTION_PHASE15A_TEST_BIN) $(QNX_DRIVER_FRAMEWORK_PHASE15B_TEST_BIN) $(BSP_PHASE16A_TEST_BIN) $(QNX_NETWORK_TEST_BIN) $(DISTRIBUTED_RUNTIME_PHASE16C_TEST_BIN) $(DEPLOYMENT_LAYER_PHASE16D_TEST_BIN) $(CITY_SIMULATION_PHASE19_TEST_BIN) $(HARDWARE_INTEGRATION_PHASE20_TEST_BIN) $(QNX_DEPLOYMENT_PHASE20_5_TEST_BIN) $(QNX_HARDENING_PHASE20_6_TEST_BIN) $(QNX_HARDENING_PHASE20_7_TEST_BIN) $(PHASE1_HARDWARE_TEST_BIN) $(PHASE2_EMBEDDED_TEST_BIN) $(PHASE3_CORRIDOR_TEST_BIN) $(PHASE4_QNX_TEST_BIN) $(EXAMPLE_SERVER_BIN) $(EXAMPLE_CLIENT_BIN)
+all: directories $(STATIC_LIB) $(APPS) $(SMOKE_TEST_BIN) $(FOUNDATION_TEST_BIN) $(COMM_TEST_BIN) $(COMM_MOD_TEST_BIN) $(COORD_TEST_BIN) $(COORD_FOUNDATION_TEST_BIN) $(GREEN_CORRIDOR_TEST_BIN) $(AMB_TEST_BIN) $(TRAFFIC_TEST_BIN) $(INTERSECTION_NODE_TEST_BIN) $(SYSTEM_INTEGRATION_TEST_BIN) $(RPI_DEPLOYMENT_TEST_BIN) $(MEDICAL_TEST_BIN) $(AMB_REG_TEST_BIN) $(CONFLICT_TEST_BIN) $(CONTROL_TEST_BIN) $(LOGGER_TEST_BIN) $(PHASE8_TEST_BIN) $(COORD_MONITORING_TEST_BIN) $(TRAFFIC_SIGNAL_PHASE6A_TEST_BIN) $(COORD_TRAFFIC_SIGNAL_PHASE6B_TEST_BIN) $(EMERGENCY_CORRIDOR_PHASE7A_TEST_BIN) $(GREEN_WAVE_PHASE7B_TEST_BIN) $(PRIORITY_SCHEDULER_PHASE8A_TEST_BIN) $(EMERGENCY_ORCHESTRATOR_PHASE8B_TEST_BIN) $(DYNAMIC_ROUTE_REPLANNER_PHASE9A_TEST_BIN) $(MULTI_CORRIDOR_COORDINATOR_PHASE9B_TEST_BIN) $(DISTRIBUTED_SIGNAL_PHASE10A_TEST_BIN) $(PREDICTIVE_TRAFFIC_PHASE10B_TEST_BIN) $(FLEET_MANAGEMENT_PHASE11A_TEST_BIN) $(HOSPITAL_SELECTION_PHASE11B_TEST_BIN) $(HOSPITAL_RESOURCE_PHASE11B_TEST_BIN) $(MISSION_EXECUTION_PHASE12A_TEST_BIN) $(INCIDENT_COMMAND_PHASE12B_TEST_BIN) $(TRAFFIC_NETWORK_ORCHESTRATOR_PHASE13A_TEST_BIN) $(DISTRIBUTED_CONSENSUS_PHASE13B_TEST_BIN) $(RPI_CLUSTER_PHASE14A_TEST_BIN) $(SYSTEM_DIAGNOSTICS_PHASE14B_TEST_BIN) $(HARDWARE_ABSTRACTION_PHASE15A_TEST_BIN) $(QNX_DRIVER_FRAMEWORK_PHASE15B_TEST_BIN) $(BSP_PHASE16A_TEST_BIN) $(QNX_NETWORK_TEST_BIN) $(DISTRIBUTED_RUNTIME_PHASE16C_TEST_BIN) $(DEPLOYMENT_LAYER_PHASE16D_TEST_BIN) $(CITY_SIMULATION_PHASE19_TEST_BIN) $(HARDWARE_INTEGRATION_PHASE20_TEST_BIN) $(QNX_DEPLOYMENT_PHASE20_5_TEST_BIN) $(QNX_HARDENING_PHASE20_6_TEST_BIN) $(QNX_HARDENING_PHASE20_7_TEST_BIN) $(PHASE1_HARDWARE_TEST_BIN) $(PHASE2_EMBEDDED_TEST_BIN) $(PHASE3_CORRIDOR_TEST_BIN) $(PHASE4_QNX_TEST_BIN) $(COORDINATOR_SERVER_BIN) $(COORDINATOR_TCP_TEST_BIN) $(TRAFFIC_SIGNAL_NODE_BIN) $(TRAFFIC_NODE_TEST_BIN) $(COORD_INTEL_TEST_BIN) $(COORD_ORCHESTRATION_TEST_BIN) $(CONTROL_CENTER_TEST_BIN) $(ROAD_PERCEPTION_TEST_BIN) $(DIGITAL_TWIN_TEST_BIN) $(PRODUCTION_RELIABILITY_TEST_BIN) $(SYSTEM_VVE_TEST_BIN) $(CLUSTER_DEPLOYMENT_TEST_BIN) $(PHASE12_DEMO_TEST_BIN) $(PHASE13_COMMAND_CENTER_TEST_BIN) $(EXAMPLE_SERVER_BIN) $(EXAMPLE_CLIENT_BIN)
 	@echo "=========================================================="
 	@echo " SMART AEGIS Build Complete [$(BUILD_TYPE)]"
 	@echo " Binaries located in: $(BIN_DIR)"
@@ -221,6 +545,16 @@ directories:
 	@mkdir -p $(OBJ_DIR)/common $(OBJ_DIR)/config $(OBJ_DIR)/logger $(OBJ_DIR)/safety
 	@mkdir -p $(OBJ_DIR)/network $(OBJ_DIR)/communication $(OBJ_DIR)/priority_scheduler $(OBJ_DIR)/route_planner
 	@mkdir -p $(OBJ_DIR)/coordinator $(OBJ_DIR)/ambulance $(OBJ_DIR)/traffic_controller $(OBJ_DIR)/intersection $(OBJ_DIR)/system $(OBJ_DIR)/medical $(OBJ_DIR)/scheduler $(OBJ_DIR)/control $(OBJ_DIR)/traffic_signal $(OBJ_DIR)/green_corridor $(OBJ_DIR)/green_wave $(OBJ_DIR)/orchestrator $(OBJ_DIR)/replanning $(OBJ_DIR)/multi_corridor $(OBJ_DIR)/distributed_signal $(OBJ_DIR)/predictive_traffic $(OBJ_DIR)/fleet_management $(OBJ_DIR)/hospital_selection $(OBJ_DIR)/hospital_management $(OBJ_DIR)/mission_execution $(OBJ_DIR)/incident_command $(OBJ_DIR)/traffic_network_orchestrator $(OBJ_DIR)/distributed_consensus $(OBJ_DIR)/rpi_cluster $(OBJ_DIR)/system_diagnostics $(OBJ_DIR)/hardware_abstraction $(OBJ_DIR)/qnx_driver_framework $(OBJ_DIR)/bsp $(OBJ_DIR)/qnx_network $(OBJ_DIR)/runtime $(OBJ_DIR)/deployment $(OBJ_DIR)/simulator $(OBJ_DIR)/hardware $(OBJ_DIR)/corridor $(OBJ_DIR)/cluster $(OBJ_DIR)/recovery $(OBJ_DIR)/qnx
+	@mkdir -p $(OBJ_DIR)/common/utils $(OBJ_DIR)/common/protocol $(OBJ_DIR)/common/config $(OBJ_DIR)/common/network
+	@mkdir -p $(OBJ_DIR)/coordinator/server $(OBJ_DIR)/coordinator/logger $(OBJ_DIR)/coordinator/scheduler $(OBJ_DIR)/coordinator/routing $(OBJ_DIR)/coordinator/protocol
+	@mkdir -p $(OBJ_DIR)/coordinator/orchestration/state $(OBJ_DIR)/coordinator/orchestration/event_bus $(OBJ_DIR)/coordinator/orchestration/session $(OBJ_DIR)/coordinator/orchestration/fsm $(OBJ_DIR)/coordinator/orchestration/dispatcher $(OBJ_DIR)/coordinator/orchestration/sync $(OBJ_DIR)/coordinator/orchestration/monitor $(OBJ_DIR)/coordinator/orchestration/recovery $(OBJ_DIR)/coordinator/orchestration/config
+	@mkdir -p $(OBJ_DIR)/coordinator/control_center $(OBJ_DIR)/coordinator/hospital
+	@mkdir -p $(OBJ_DIR)/coordinator/perception $(OBJ_DIR)/coordinator/perception/analytics $(OBJ_DIR)/coordinator/perception/digital_twin
+	@mkdir -p $(OBJ_DIR)/digital_twin $(OBJ_DIR)/digital_twin/visualizers
+	@mkdir -p $(OBJ_DIR)/production $(OBJ_DIR)/production/health $(OBJ_DIR)/production/fault_tolerance $(OBJ_DIR)/production/communication $(OBJ_DIR)/production/security $(OBJ_DIR)/production/config $(OBJ_DIR)/production/reliability $(OBJ_DIR)/production/fault_injection $(OBJ_DIR)/production/benchmark
+	@mkdir -p $(OBJ_DIR)/traffic_node/config $(OBJ_DIR)/traffic_node/logger $(OBJ_DIR)/traffic_node/gpio $(OBJ_DIR)/traffic_node/relay_controller $(OBJ_DIR)/traffic_node/lamp_controller $(OBJ_DIR)/traffic_node/signal_controller $(OBJ_DIR)/traffic_node/watchdog $(OBJ_DIR)/traffic_node/client $(OBJ_DIR)/traffic_node/protocol
+	@mkdir -p $(OBJ_DIR)/hardware_integration $(OBJ_DIR)/hardware_integration/gpio $(OBJ_DIR)/hardware_integration/relay $(OBJ_DIR)/hardware_integration/sensor $(OBJ_DIR)/hardware_integration/config $(OBJ_DIR)/hardware_integration/commissioning $(OBJ_DIR)/hardware_integration/cluster $(OBJ_DIR)/hardware_integration/validation $(OBJ_DIR)/hardware_integration/logging $(OBJ_DIR)/hardware_integration/demo
+	@mkdir -p $(OBJ_DIR)/command_center $(OBJ_DIR)/command_center/fleet $(OBJ_DIR)/command_center/tracking $(OBJ_DIR)/command_center/mission $(OBJ_DIR)/command_center/hospital $(OBJ_DIR)/command_center/traffic $(OBJ_DIR)/command_center/cluster $(OBJ_DIR)/command_center/health $(OBJ_DIR)/command_center/analytics $(OBJ_DIR)/command_center/replay $(OBJ_DIR)/command_center/dashboard $(OBJ_DIR)/command_center/bridge
 
 	@mkdir -p $(OBJ_DIR)/hospital_dashboard $(OBJ_DIR)/traffic_dashboard
 	@mkdir -p $(OBJ_DIR)/apps $(OBJ_DIR)/tests/unit $(OBJ_DIR)/tests/integration
@@ -229,13 +563,48 @@ $(OBJ_DIR)/%.o: src/%.cpp | directories
 	@echo "[CXX] $<"
 	@$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
 
+$(OBJ_DIR)/common/%.o: common/%.cpp | directories
+	@mkdir -p $(dir $@)
+	@echo "[CXX] $<"
+	@$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
+
+$(OBJ_DIR)/coordinator/%.o: coordinator/%.cpp | directories
+	@mkdir -p $(dir $@)
+	@echo "[CXX] $<"
+	@$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
+
+$(OBJ_DIR)/traffic_node/%.o: traffic_node/%.cpp | directories
+	@mkdir -p $(dir $@)
+	@echo "[CXX] $<"
+	@$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
+
+$(OBJ_DIR)/digital_twin/%.o: digital_twin/%.cpp | directories
+	@mkdir -p $(dir $@)
+	@echo "[CXX] $<"
+	@$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
+
+$(OBJ_DIR)/production/%.o: production/%.cpp | directories
+	@mkdir -p $(dir $@)
+	@echo "[CXX] $<"
+	@$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
+
+$(OBJ_DIR)/hardware_integration/%.o: hardware_integration/%.cpp | directories
+	@mkdir -p $(dir $@)
+	@echo "[CXX] $<"
+	@$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
+
+$(OBJ_DIR)/command_center/%.o: command_center/%.cpp | directories
+	@mkdir -p $(dir $@)
+	@echo "[CXX] $<"
+	@$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
+
 $(OBJ_DIR)/qnx_network/%.o: network/%.cpp | directories
 	@echo "[CXX] $<"
 	@$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
 
-$(STATIC_LIB): $(ALL_OBJS) $(QNX_NET_OBJS) | directories
+$(STATIC_LIB): $(ALL_OBJS) $(QNX_NET_OBJS) $(COORD_P2_OBJS) $(TRAFFIC_NODE_P3_OBJS) $(COORD_INTEL_OBJS) $(COORD_ORCHESTRATION_OBJS) $(COORD_PHASE6_OBJS) $(COORD_PHASE7_OBJS) $(PHASE8_DT_OBJS) $(PHASE9_PROD_OBJS) $(HARDWARE_INTEGRATION_OBJS) $(HARDWARE_DEMO_OBJS) $(COMMAND_CENTER_OBJS) | directories
 	@echo "[AR] $@"
-	@ar rcs $@ $(ALL_OBJS) $(QNX_NET_OBJS)
+	@ar rcs $@ $(ALL_OBJS) $(QNX_NET_OBJS) $(COORD_P2_OBJS) $(TRAFFIC_NODE_P3_OBJS) $(COORD_INTEL_OBJS) $(COORD_ORCHESTRATION_OBJS) $(COORD_PHASE6_OBJS) $(COORD_PHASE7_OBJS) $(PHASE8_DT_OBJS) $(PHASE9_PROD_OBJS) $(HARDWARE_INTEGRATION_OBJS) $(HARDWARE_DEMO_OBJS) $(COMMAND_CENTER_OBJS)
 
 $(BIN_DIR)/aegis_coordinator: src/apps/coordinator_main.cpp $(STATIC_LIB)
 	@echo "[LINK] $@"
@@ -514,7 +883,63 @@ $(PHASE4_QNX_TEST_BIN): tests/unit/test_phase4_native_qnx.cpp $(STATIC_LIB)
 	@echo "[LINK] $@"
 	@$(CXX) $(CXXFLAGS) $(INCLUDES) $< -L$(LIB_DIR) -laegis -o $@
 
-test: directories $(SMOKE_TEST_BIN) $(FOUNDATION_TEST_BIN) $(COMM_TEST_BIN) $(COMM_MOD_TEST_BIN) $(COORD_TEST_BIN) $(COORD_FOUNDATION_TEST_BIN) $(GREEN_CORRIDOR_TEST_BIN) $(AMB_TEST_BIN) $(TRAFFIC_TEST_BIN) $(INTERSECTION_NODE_TEST_BIN) $(SYSTEM_INTEGRATION_TEST_BIN) $(RPI_DEPLOYMENT_TEST_BIN) $(MEDICAL_TEST_BIN) $(AMB_REG_TEST_BIN) $(CONFLICT_TEST_BIN) $(CONTROL_TEST_BIN) $(LOGGER_TEST_BIN) $(PHASE8_TEST_BIN) $(COORD_MONITORING_TEST_BIN) $(TRAFFIC_SIGNAL_PHASE6A_TEST_BIN) $(COORD_TRAFFIC_SIGNAL_PHASE6B_TEST_BIN) $(EMERGENCY_CORRIDOR_PHASE7A_TEST_BIN) $(GREEN_WAVE_PHASE7B_TEST_BIN) $(PRIORITY_SCHEDULER_PHASE8A_TEST_BIN) $(EMERGENCY_ORCHESTRATOR_PHASE8B_TEST_BIN) $(DYNAMIC_ROUTE_REPLANNER_PHASE9A_TEST_BIN) $(MULTI_CORRIDOR_COORDINATOR_PHASE9B_TEST_BIN) $(DISTRIBUTED_SIGNAL_PHASE10A_TEST_BIN) $(PREDICTIVE_TRAFFIC_PHASE10B_TEST_BIN) $(FLEET_MANAGEMENT_PHASE11A_TEST_BIN) $(HOSPITAL_SELECTION_PHASE11B_TEST_BIN) $(HOSPITAL_RESOURCE_PHASE11B_TEST_BIN) $(MISSION_EXECUTION_PHASE12A_TEST_BIN) $(INCIDENT_COMMAND_PHASE12B_TEST_BIN) $(TRAFFIC_NETWORK_ORCHESTRATOR_PHASE13A_TEST_BIN) $(DISTRIBUTED_CONSENSUS_PHASE13B_TEST_BIN) $(RPI_CLUSTER_PHASE14A_TEST_BIN) $(SYSTEM_DIAGNOSTICS_PHASE14B_TEST_BIN) $(HARDWARE_ABSTRACTION_PHASE15A_TEST_BIN) $(QNX_DRIVER_FRAMEWORK_PHASE15B_TEST_BIN) $(BSP_PHASE16A_TEST_BIN) $(QNX_NETWORK_TEST_BIN) $(DISTRIBUTED_RUNTIME_PHASE16C_TEST_BIN) $(DEPLOYMENT_LAYER_PHASE16D_TEST_BIN) $(CITY_SIMULATION_PHASE19_TEST_BIN) $(HARDWARE_INTEGRATION_PHASE20_TEST_BIN) $(QNX_DEPLOYMENT_PHASE20_5_TEST_BIN) $(QNX_HARDENING_PHASE20_6_TEST_BIN) $(QNX_HARDENING_PHASE20_7_TEST_BIN) $(PHASE1_HARDWARE_TEST_BIN) $(PHASE2_EMBEDDED_TEST_BIN) $(PHASE3_CORRIDOR_TEST_BIN) $(PHASE4_QNX_TEST_BIN)
+$(COORDINATOR_SERVER_BIN): coordinator/server/main.cpp $(STATIC_LIB)
+	@echo "[LINK] $@"
+	@$(CXX) $(CXXFLAGS) $(INCLUDES) $< -L$(LIB_DIR) -laegis -o $@
+
+$(COORDINATOR_TCP_TEST_BIN): tests/unit/test_coordinator_tcp_server.cpp $(STATIC_LIB)
+	@echo "[LINK] $@"
+	@$(CXX) $(CXXFLAGS) $(INCLUDES) $< -L$(LIB_DIR) -laegis -o $@
+
+$(TRAFFIC_SIGNAL_NODE_BIN): traffic_node/main.cpp $(STATIC_LIB)
+	@echo "[LINK] $@"
+	@$(CXX) $(CXXFLAGS) $(INCLUDES) $< -L$(LIB_DIR) -laegis -o $@
+
+$(TRAFFIC_NODE_TEST_BIN): tests/unit/test_traffic_node.cpp $(STATIC_LIB)
+	@echo "[LINK] $@"
+	@$(CXX) $(CXXFLAGS) $(INCLUDES) $< -L$(LIB_DIR) -laegis -o $@
+
+$(COORD_INTEL_TEST_BIN): tests/unit/test_coordinator_intelligence.cpp $(STATIC_LIB)
+	@echo "[LINK] $@"
+	@$(CXX) $(CXXFLAGS) $(INCLUDES) $< -L$(LIB_DIR) -laegis -o $@
+
+$(COORD_ORCHESTRATION_TEST_BIN): tests/unit/test_coordinator_orchestration.cpp $(STATIC_LIB)
+	@echo "[LINK] $@"
+	@$(CXX) $(CXXFLAGS) $(INCLUDES) $< -L$(LIB_DIR) -laegis -o $@
+
+$(CONTROL_CENTER_TEST_BIN): tests/unit/test_control_center.cpp $(STATIC_LIB)
+	@echo "[LINK] $@"
+	@$(CXX) $(CXXFLAGS) $(INCLUDES) $< -L$(LIB_DIR) -laegis -o $@
+
+$(ROAD_PERCEPTION_TEST_BIN): tests/unit/test_road_perception.cpp $(STATIC_LIB)
+	@echo "[LINK] $@"
+	@$(CXX) $(CXXFLAGS) $(INCLUDES) $< -L$(LIB_DIR) -laegis -o $@
+
+$(DIGITAL_TWIN_TEST_BIN): tests/unit/test_digital_twin_operations_center.cpp $(STATIC_LIB)
+	@echo "[LINK] $@"
+	@$(CXX) $(CXXFLAGS) $(INCLUDES) $< -L$(LIB_DIR) -laegis -o $@
+
+$(PRODUCTION_RELIABILITY_TEST_BIN): tests/unit/test_production_reliability.cpp $(STATIC_LIB)
+	@echo "[LINK] $@"
+	@$(CXX) $(CXXFLAGS) $(INCLUDES) $< -L$(LIB_DIR) -laegis -o $@
+
+$(SYSTEM_VVE_TEST_BIN): tests/unit/test_system_vve.cpp $(STATIC_LIB)
+	@echo "[LINK] $@"
+	@$(CXX) $(CXXFLAGS) $(INCLUDES) $< -L$(LIB_DIR) -laegis -o $@
+
+$(CLUSTER_DEPLOYMENT_TEST_BIN): tests/unit/test_cluster_deployment_hardware.cpp $(STATIC_LIB)
+	@echo "[LINK] $@"
+	@$(CXX) $(CXXFLAGS) $(INCLUDES) $< -L$(LIB_DIR) -laegis -o $@
+
+$(PHASE12_DEMO_TEST_BIN): tests/unit/test_phase12_hardware_demo.cpp $(STATIC_LIB)
+	@echo "[LINK] $@"
+	@$(CXX) $(CXXFLAGS) $(INCLUDES) $< -L$(LIB_DIR) -laegis -o $@
+
+$(PHASE13_COMMAND_CENTER_TEST_BIN): tests/unit/test_phase13_command_center.cpp $(STATIC_LIB)
+	@echo "[LINK] $@"
+	@$(CXX) $(CXXFLAGS) $(INCLUDES) $< -L$(LIB_DIR) -laegis -o $@
+
+test: directories $(SMOKE_TEST_BIN) $(FOUNDATION_TEST_BIN) $(COMM_TEST_BIN) $(COMM_MOD_TEST_BIN) $(COORD_TEST_BIN) $(COORD_FOUNDATION_TEST_BIN) $(GREEN_CORRIDOR_TEST_BIN) $(AMB_TEST_BIN) $(TRAFFIC_TEST_BIN) $(INTERSECTION_NODE_TEST_BIN) $(SYSTEM_INTEGRATION_TEST_BIN) $(RPI_DEPLOYMENT_TEST_BIN) $(MEDICAL_TEST_BIN) $(AMB_REG_TEST_BIN) $(CONFLICT_TEST_BIN) $(CONTROL_TEST_BIN) $(LOGGER_TEST_BIN) $(PHASE8_TEST_BIN) $(COORD_MONITORING_TEST_BIN) $(TRAFFIC_SIGNAL_PHASE6A_TEST_BIN) $(COORD_TRAFFIC_SIGNAL_PHASE6B_TEST_BIN) $(EMERGENCY_CORRIDOR_PHASE7A_TEST_BIN) $(GREEN_WAVE_PHASE7B_TEST_BIN) $(PRIORITY_SCHEDULER_PHASE8A_TEST_BIN) $(EMERGENCY_ORCHESTRATOR_PHASE8B_TEST_BIN) $(DYNAMIC_ROUTE_REPLANNER_PHASE9A_TEST_BIN) $(MULTI_CORRIDOR_COORDINATOR_PHASE9B_TEST_BIN) $(DISTRIBUTED_SIGNAL_PHASE10A_TEST_BIN) $(PREDICTIVE_TRAFFIC_PHASE10B_TEST_BIN) $(FLEET_MANAGEMENT_PHASE11A_TEST_BIN) $(HOSPITAL_SELECTION_PHASE11B_TEST_BIN) $(HOSPITAL_RESOURCE_PHASE11B_TEST_BIN) $(MISSION_EXECUTION_PHASE12A_TEST_BIN) $(INCIDENT_COMMAND_PHASE12B_TEST_BIN) $(TRAFFIC_NETWORK_ORCHESTRATOR_PHASE13A_TEST_BIN) $(DISTRIBUTED_CONSENSUS_PHASE13B_TEST_BIN) $(RPI_CLUSTER_PHASE14A_TEST_BIN) $(SYSTEM_DIAGNOSTICS_PHASE14B_TEST_BIN) $(HARDWARE_ABSTRACTION_PHASE15A_TEST_BIN) $(QNX_DRIVER_FRAMEWORK_PHASE15B_TEST_BIN) $(BSP_PHASE16A_TEST_BIN) $(QNX_NETWORK_TEST_BIN) $(DISTRIBUTED_RUNTIME_PHASE16C_TEST_BIN) $(DEPLOYMENT_LAYER_PHASE16D_TEST_BIN) $(CITY_SIMULATION_PHASE19_TEST_BIN) $(HARDWARE_INTEGRATION_PHASE20_TEST_BIN) $(QNX_DEPLOYMENT_PHASE20_5_TEST_BIN) $(QNX_HARDENING_PHASE20_6_TEST_BIN) $(QNX_HARDENING_PHASE20_7_TEST_BIN) $(PHASE1_HARDWARE_TEST_BIN) $(PHASE2_EMBEDDED_TEST_BIN) $(PHASE3_CORRIDOR_TEST_BIN) $(PHASE4_QNX_TEST_BIN) $(COORDINATOR_TCP_TEST_BIN) $(TRAFFIC_NODE_TEST_BIN) $(COORD_INTEL_TEST_BIN) $(COORD_ORCHESTRATION_TEST_BIN) $(CONTROL_CENTER_TEST_BIN) $(ROAD_PERCEPTION_TEST_BIN) $(DIGITAL_TWIN_TEST_BIN) $(PRODUCTION_RELIABILITY_TEST_BIN) $(SYSTEM_VVE_TEST_BIN) $(CLUSTER_DEPLOYMENT_TEST_BIN) $(PHASE12_DEMO_TEST_BIN) $(PHASE13_COMMAND_CENTER_TEST_BIN)
 	@echo "=========================================================="
 	@echo " Running SMART AEGIS Test Suites"
 	@echo "=========================================================="
@@ -571,6 +996,18 @@ test: directories $(SMOKE_TEST_BIN) $(FOUNDATION_TEST_BIN) $(COMM_TEST_BIN) $(CO
 	@$(PHASE2_EMBEDDED_TEST_BIN)
 	@$(PHASE3_CORRIDOR_TEST_BIN)
 	@$(PHASE4_QNX_TEST_BIN)
+	@$(COORDINATOR_TCP_TEST_BIN)
+	@$(TRAFFIC_NODE_TEST_BIN)
+	@$(COORD_INTEL_TEST_BIN)
+	@$(COORD_ORCHESTRATION_TEST_BIN)
+	@$(CONTROL_CENTER_TEST_BIN)
+	@$(ROAD_PERCEPTION_TEST_BIN)
+	@$(DIGITAL_TWIN_TEST_BIN)
+	@$(PRODUCTION_RELIABILITY_TEST_BIN)
+	@$(SYSTEM_VVE_TEST_BIN)
+	@$(CLUSTER_DEPLOYMENT_TEST_BIN)
+	@$(PHASE12_DEMO_TEST_BIN)
+	@$(PHASE13_COMMAND_CENTER_TEST_BIN)
 
 clean:
 	@rm -rf $(BUILD_DIR)

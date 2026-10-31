@@ -1,0 +1,53 @@
+{
+  "clusterName": "SMART_AEGIS_DOWNTOWN_CLUSTER",
+  "coordinatorEndpoint": {
+    "nodeId": "RPI_COORD",
+    "ipAddress": "192.168.1.100",
+    "port": 9000
+  },
+  "nodes": [
+    {
+      "nodeId": "RPI_COORD",
+      "role": "COORDINATOR",
+      "ipAddress": "192.168.1.100",
+      "port": 9000,
+      "hardware": "Raspberry Pi 4 Model B (4 GB)",
+      "os": "QNX Neutrino RTOS 8.0 (aarch64le)",
+      "description": "Master Coordinator & Control Center"
+    },
+    {
+      "nodeId": "INT_A",
+      "role": "TRAFFIC_NODE",
+      "ipAddress": "192.168.1.101",
+      "port": 9001,
+      "hardware": "Raspberry Pi 4 Model B (4 GB)",
+      "os": "QNX Neutrino RTOS 8.0 (aarch64le)",
+      "description": "Intersection A: Main St & 1st Ave (Relay Bank + IR Sensor)"
+    },
+    {
+      "nodeId": "INT_B",
+      "role": "TRAFFIC_NODE",
+      "ipAddress": "192.168.1.102",
+      "port": 9002,
+      "hardware": "Raspberry Pi 4 Model B (4 GB)",
+      "os": "QNX Neutrino RTOS 8.0 (aarch64le)",
+      "description": "Intersection B: Main St & 2nd Ave (Relay Bank + IR Sensor)"
+    },
+    {
+      "nodeId": "INT_C",
+      "role": "TRAFFIC_NODE",
+      "ipAddress": "192.168.1.103",
+      "port": 9003,
+      "hardware": "Raspberry Pi 4 Model B (4 GB)",
+      "os": "QNX Neutrino RTOS 8.0 (aarch64le)",
+      "description": "Intersection C: Hospital Approach & 3rd Ave (Relay Bank + IR Sensor)"
+    }
+  ],
+  "network": {
+    "subnet": "192.168.1.0/24",
+    "gateway": "192.168.1.1",
+    "heartbeatIntervalMs": 1000,
+    "watchdogTimeoutMs": 5000,
+    "maxClockSkewMs": 50
+  }
+}
