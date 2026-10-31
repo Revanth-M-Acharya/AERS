@@ -5,7 +5,8 @@
 
 namespace aegis {
 namespace ambulance {
-
+#pragma once
+#include <string>
 class V2vModule {
 public:
     V2vModule() = default;
