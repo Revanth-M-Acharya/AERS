@@ -35,10 +35,10 @@ HardwareConfiguration::HardwareConfiguration() {
     m_signalPins.manualOverridePin = 16;
 
     m_relays = {
-        {1, 17, "ROAD_A_RED", true, true},
-        {2, 22, "ROAD_A_GREEN", true, false},
-        {3, 23, "ROAD_B_RED", true, true},
-        {4, 25, "ROAD_B_GREEN", true, false}
+        {1, 17, "ROAD_A_RED", false, true},
+        {2, 22, "ROAD_A_GREEN", false, false},
+        {3, 23, "ROAD_B_RED", false, true},
+        {4, 25, "ROAD_B_GREEN", false, false}
     };
 
     m_irSensors.approachSensorPin = 12;
@@ -53,7 +53,7 @@ HardwareConfiguration::HardwareConfiguration() {
     m_timings.preemptionMaxHoldSec = 60.0;
     m_timings.failsafeState = "FLASHING_YELLOW";
     m_timings.failsafeFlashRateHz = 1.0;
-    m_relayActiveLow = true;
+    m_relayActiveLow = false;
 }
 
 bool HardwareConfiguration::LoadFromFile(const std::string& path) {

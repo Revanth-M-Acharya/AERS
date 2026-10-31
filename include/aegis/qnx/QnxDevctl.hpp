@@ -31,22 +31,73 @@
 
 #if defined(__QNX__) || defined(__QNXNTO__)
     #include <devctl.h>
-#else
-    // QNX devctl macro definitions for POSIX / host testing
+    #ifndef _POSIX_DEVDIR_NONE
+        #define _POSIX_DEVDIR_NONE   0x00000000U
+    #endif
+    #ifndef _POSIX_DEVDIR_TO
+        #define _POSIX_DEVDIR_TO     0x80000000U
+    #endif
+    #ifndef _POSIX_DEVDIR_FROM
+        #define _POSIX_DEVDIR_FROM   0x40000000U
+    #endif
+    #ifndef _POSIX_DEVDIR_TOFROM
+        #define _POSIX_DEVDIR_TOFROM (_POSIX_DEVDIR_TO | _POSIX_DEVDIR_FROM)
+    #endif
     #ifndef __DION
         #define __DION(class, cmd) (((class) << 8) | (cmd))
     #endif
     #ifndef __DIOT
-        #define __DIOT(class, cmd, data) (((class) << 8) | (cmd))
-    #endif
-    #ifndef __DIOW
-        #define __DIOW(class, cmd, data) (((class) << 8) | (cmd))
-    #endif
-    #ifndef __DIOWR
-        #define __DIOWR(class, cmd, data) (((class) << 8) | (cmd))
+        #define __DIOT(class, cmd, data) \
+            (static_cast<uint32_t>((_POSIX_DEVDIR_TO) | ((sizeof(data) & 0xFFF) << 16) | (((class) & 0xFF) << 8) | ((cmd) & 0xFF)))
     #endif
     #ifndef __DIOF
-        #define __DIOF(class, cmd, data) (((class) << 8) | (cmd))
+        #define __DIOF(class, cmd, data) \
+            (static_cast<uint32_t>((_POSIX_DEVDIR_FROM) | ((sizeof(data) & 0xFFF) << 16) | (((class) & 0xFF) << 8) | ((cmd) & 0xFF)))
+    #endif
+    #ifndef __DIOTF
+        #define __DIOTF(class, cmd, data) \
+            (static_cast<uint32_t>((_POSIX_DEVDIR_TOFROM) | ((sizeof(data) & 0xFFF) << 16) | (((class) & 0xFF) << 8) | ((cmd) & 0xFF)))
+    #endif
+    #ifndef __DIOW
+        #define __DIOW(class, cmd, data) __DIOT(class, cmd, data)
+    #endif
+    #ifndef __DIOWR
+        #define __DIOWR(class, cmd, data) __DIOTF(class, cmd, data)
+    #endif
+#else
+    // Native-compatible QNX devctl macro definitions for POSIX / host testing
+    #ifndef _POSIX_DEVDIR_NONE
+        #define _POSIX_DEVDIR_NONE   0x00000000U
+    #endif
+    #ifndef _POSIX_DEVDIR_TO
+        #define _POSIX_DEVDIR_TO     0x80000000U
+    #endif
+    #ifndef _POSIX_DEVDIR_FROM
+        #define _POSIX_DEVDIR_FROM   0x40000000U
+    #endif
+    #ifndef _POSIX_DEVDIR_TOFROM
+        #define _POSIX_DEVDIR_TOFROM (_POSIX_DEVDIR_TO | _POSIX_DEVDIR_FROM)
+    #endif
+    #ifndef __DION
+        #define __DION(class, cmd) (((class) << 8) | (cmd))
+    #endif
+    #ifndef __DIOT
+        #define __DIOT(class, cmd, data) \
+            (static_cast<uint32_t>((_POSIX_DEVDIR_TO) | ((sizeof(data) & 0xFFF) << 16) | (((class) & 0xFF) << 8) | ((cmd) & 0xFF)))
+    #endif
+    #ifndef __DIOF
+        #define __DIOF(class, cmd, data) \
+            (static_cast<uint32_t>((_POSIX_DEVDIR_FROM) | ((sizeof(data) & 0xFFF) << 16) | (((class) & 0xFF) << 8) | ((cmd) & 0xFF)))
+    #endif
+    #ifndef __DIOTF
+        #define __DIOTF(class, cmd, data) \
+            (static_cast<uint32_t>((_POSIX_DEVDIR_TOFROM) | ((sizeof(data) & 0xFFF) << 16) | (((class) & 0xFF) << 8) | ((cmd) & 0xFF)))
+    #endif
+    #ifndef __DIOW
+        #define __DIOW(class, cmd, data) __DIOT(class, cmd, data)
+    #endif
+    #ifndef __DIOWR
+        #define __DIOWR(class, cmd, data) __DIOTF(class, cmd, data)
     #endif
 #endif
 
@@ -157,20 +208,23 @@ struct AegisSelfTestPayload {
 // =============================================================================
 
 #define DCMD_AEGIS_GET_SYSTEM_STATUS   __DIOF (AEGIS_DEVCTL_CLASS, 1, AegisSystemStatusPayload)
-#define DCMD_AEGIS_GET_NODE_STATUS     __DIOWR(AEGIS_DEVCTL_CLASS, 2, AegisNodeStatusPayload)
-#define DCMD_AEGIS_START_CORRIDOR      __DIOWR(AEGIS_DEVCTL_CLASS, 3, AegisStartCorridorPayload)
-#define DCMD_AEGIS_STOP_CORRIDOR       __DIOWR(AEGIS_DEVCTL_CLASS, 4, AegisStopCorridorPayload)
-#define DCMD_AEGIS_RESET_NODE          __DIOWR(AEGIS_DEVCTL_CLASS, 5, AegisResetNodePayload)
+#define DCMD_AEGIS_GET_NODE_STATUS     __DIOTF(AEGIS_DEVCTL_CLASS, 2, AegisNodeStatusPayload)
+#define DCMD_AEGIS_START_CORRIDOR      __DIOTF(AEGIS_DEVCTL_CLASS, 3, AegisStartCorridorPayload)
+#define DCMD_AEGIS_STOP_CORRIDOR       __DIOTF(AEGIS_DEVCTL_CLASS, 4, AegisStopCorridorPayload)
+#define DCMD_AEGIS_RESET_NODE          __DIOTF(AEGIS_DEVCTL_CLASS, 5, AegisResetNodePayload)
 #define DCMD_AEGIS_READ_TELEMETRY      __DIOF (AEGIS_DEVCTL_CLASS, 6, AegisTelemetryPayload)
 #define DCMD_AEGIS_READ_LOGS           __DIOF (AEGIS_DEVCTL_CLASS, 7, AegisLogsPayload)
-#define DCMD_AEGIS_ENABLE_DIAGNOSTICS  __DIOW (AEGIS_DEVCTL_CLASS, 8, AegisEnableDiagPayload)
-#define DCMD_AEGIS_RUN_SELF_TEST       __DIOWR(AEGIS_DEVCTL_CLASS, 9, AegisSelfTestPayload)
+#define DCMD_AEGIS_ENABLE_DIAGNOSTICS  __DIOT (AEGIS_DEVCTL_CLASS, 8, AegisEnableDiagPayload)
+#define DCMD_AEGIS_RUN_SELF_TEST       __DIOTF(AEGIS_DEVCTL_CLASS, 9, AegisSelfTestPayload)
 
 /**
  * @brief Invokes a devctl command on an open device file descriptor.
  * Uses native QNX devctl() when running on Neutrino RTOS, or simulated dispatcher on POSIX host.
  */
-int InvokeDevctl(int fd, int dcmd, void* dataPtr, size_t nBytes, int* infoPtr = nullptr);
+int InvokeDevctl(int fd, uint32_t dcmd, void* dataPtr, size_t nBytes, int* infoPtr = nullptr);
+inline int InvokeDevctl(int fd, int dcmd, void* dataPtr, size_t nBytes, int* infoPtr = nullptr) {
+    return InvokeDevctl(fd, static_cast<uint32_t>(dcmd), dataPtr, nBytes, infoPtr);
+}
 
 } // namespace qnx
 } // namespace aegis

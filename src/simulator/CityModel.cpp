@@ -47,9 +47,24 @@ bool CityModel::LoadFromConfigFile(const std::string& /*configFilePath*/) {
     const std::vector<RoadNode> defaultNodes = {
         {"AMB_STATION_1", "Central Municipal Depot", 12.9680, 77.5900, false},
         {"AMB_STATION_2", "East Sector Outpost", 12.9770, 77.6010, false},
+        {"POLICE_STATION_1", "Central Police HQ", 12.9710, 77.5920, false},
+        {"POLICE_STATION_2", "East Traffic Command", 12.9780, 77.5980, false},
+        {"FIRE_STATION_1", "Central Fire Response", 12.9695, 77.5935, false},
         {"INT_A", "Brigade Road / MG Road", 12.9716, 77.5946, true},
         {"INT_B", "MG Road / Residency Road", 12.9725, 77.5958, true},
         {"INT_C", "Hospital Approach Avenue", 12.9738, 77.5972, true},
+        {"INT_01", "MG Road - Brigade Junction", 12.9716, 77.5946, true},
+        {"INT_02", "Residency Road Cross", 12.9725, 77.5958, true},
+        {"INT_03", "Richmond Circle", 12.9738, 77.5972, true},
+        {"INT_04", "Trinity Circle", 12.9745, 77.5990, true},
+        {"INT_05", "Victoria Hospital Junction", 12.9675, 77.5940, true},
+        {"INT_06", "Koramangala Ring Road", 12.9685, 77.5960, true},
+        {"INT_07", "Indiranagar 100ft Junction", 12.9700, 77.5980, true},
+        {"INT_08", "Old Airport Expressway", 12.9715, 77.6000, true},
+        {"INT_09", "Cubbon Park North Cross", 12.9755, 77.5935, true},
+        {"INT_10", "Queens Road Interlink", 12.9765, 77.5950, true},
+        {"INT_11", "Cantonment Central", 12.9775, 77.5965, true},
+        {"INT_12", "Halasuru Lake Overpass", 12.9785, 77.5985, true},
         {"HOSP_CITY_TRAUMA", "City Trauma Center", 12.9750, 77.5985, false},
         {"HOSP_METRO_GENERAL", "Metro General Hospital", 12.9690, 77.5910, false},
         {"HOSP_ST_JUDE", "St. Jude Heart Institute", 12.9765, 77.5995, false}
@@ -63,21 +78,65 @@ bool CityModel::LoadFromConfigFile(const std::string& /*configFilePath*/) {
     const std::vector<RoadEdge> defaultEdges = {
         {"EDGE_DEPOT_A", "AMB_STATION_1", "INT_A", 650.0, 50.0, 2, 1.0, false, false, false},
         {"EDGE_A_DEPOT", "INT_A", "AMB_STATION_1", 650.0, 50.0, 2, 1.0, false, false, false},
-
         {"EDGE_A_B", "INT_A", "INT_B", 420.0, 50.0, 3, 1.0, false, false, false},
         {"EDGE_B_A", "INT_B", "INT_A", 420.0, 50.0, 3, 1.0, false, false, false},
-
         {"EDGE_B_C", "INT_B", "INT_C", 480.0, 50.0, 3, 1.0, false, false, false},
         {"EDGE_C_B", "INT_C", "INT_B", 480.0, 50.0, 3, 1.0, false, false, false},
-
         {"EDGE_C_TRAUMA", "INT_C", "HOSP_CITY_TRAUMA", 350.0, 45.0, 2, 1.0, false, false, false},
         {"EDGE_TRAUMA_C", "HOSP_CITY_TRAUMA", "INT_C", 350.0, 45.0, 2, 1.0, false, false, false},
-
         {"EDGE_TRAUMA_JUDE", "HOSP_CITY_TRAUMA", "HOSP_ST_JUDE", 280.0, 40.0, 2, 1.0, false, false, false},
         {"EDGE_JUDE_TRAUMA", "HOSP_ST_JUDE", "HOSP_CITY_TRAUMA", 280.0, 40.0, 2, 1.0, false, false, false},
-
         {"EDGE_DEPOT_METRO", "AMB_STATION_1", "HOSP_METRO_GENERAL", 250.0, 45.0, 2, 1.0, false, false, false},
-        {"EDGE_METRO_DEPOT", "HOSP_METRO_GENERAL", "AMB_STATION_1", 250.0, 45.0, 2, 1.0, false, false, false}
+        {"EDGE_METRO_DEPOT", "HOSP_METRO_GENERAL", "AMB_STATION_1", 250.0, 45.0, 2, 1.0, false, false, false},
+
+        // Grid Arterials 1 - 12
+        {"EDGE_01_02", "INT_01", "INT_02", 420.0, 50.0, 3, 1.0, false, false, false},
+        {"EDGE_02_01", "INT_02", "INT_01", 420.0, 50.0, 3, 1.0, false, false, false},
+        {"EDGE_02_03", "INT_02", "INT_03", 480.0, 50.0, 3, 1.0, false, false, false},
+        {"EDGE_03_02", "INT_03", "INT_02", 480.0, 50.0, 3, 1.0, false, false, false},
+        {"EDGE_03_04", "INT_03", "INT_04", 450.0, 50.0, 3, 1.0, false, false, false},
+        {"EDGE_04_03", "INT_04", "INT_03", 450.0, 50.0, 3, 1.0, false, false, false},
+
+        {"EDGE_01_05", "INT_01", "INT_05", 510.0, 45.0, 2, 1.0, false, false, false},
+        {"EDGE_05_01", "INT_05", "INT_01", 510.0, 45.0, 2, 1.0, false, false, false},
+        {"EDGE_02_06", "INT_02", "INT_06", 520.0, 45.0, 2, 1.0, false, false, false},
+        {"EDGE_06_02", "INT_06", "INT_02", 520.0, 45.0, 2, 1.0, false, false, false},
+        {"EDGE_03_07", "INT_03", "INT_07", 530.0, 45.0, 2, 1.0, false, false, false},
+        {"EDGE_07_03", "INT_07", "INT_03", 530.0, 45.0, 2, 1.0, false, false, false},
+        {"EDGE_04_08", "INT_04", "INT_08", 540.0, 45.0, 2, 1.0, false, false, false},
+        {"EDGE_08_04", "INT_08", "INT_04", 540.0, 45.0, 2, 1.0, false, false, false},
+
+        {"EDGE_05_06", "INT_05", "INT_06", 430.0, 50.0, 2, 1.0, false, false, false},
+        {"EDGE_06_05", "INT_06", "INT_05", 430.0, 50.0, 2, 1.0, false, false, false},
+        {"EDGE_06_07", "INT_06", "INT_07", 440.0, 50.0, 2, 1.0, false, false, false},
+        {"EDGE_07_06", "INT_07", "INT_06", 440.0, 50.0, 2, 1.0, false, false, false},
+        {"EDGE_07_08", "INT_07", "INT_08", 460.0, 50.0, 2, 1.0, false, false, false},
+        {"EDGE_08_07", "INT_08", "INT_07", 460.0, 50.0, 2, 1.0, false, false, false},
+
+        {"EDGE_09_10", "INT_09", "INT_10", 410.0, 45.0, 2, 1.0, false, false, false},
+        {"EDGE_10_09", "INT_10", "INT_09", 410.0, 45.0, 2, 1.0, false, false, false},
+        {"EDGE_10_11", "INT_10", "INT_11", 420.0, 45.0, 2, 1.0, false, false, false},
+        {"EDGE_11_10", "INT_11", "INT_10", 420.0, 45.0, 2, 1.0, false, false, false},
+        {"EDGE_11_12", "INT_11", "INT_12", 430.0, 45.0, 2, 1.0, false, false, false},
+        {"EDGE_12_11", "INT_12", "INT_11", 430.0, 45.0, 2, 1.0, false, false, false},
+
+        {"EDGE_01_09", "INT_01", "INT_09", 480.0, 45.0, 2, 1.0, false, false, false},
+        {"EDGE_09_01", "INT_09", "INT_01", 480.0, 45.0, 2, 1.0, false, false, false},
+        {"EDGE_02_10", "INT_02", "INT_10", 490.0, 45.0, 2, 1.0, false, false, false},
+        {"EDGE_10_02", "INT_10", "INT_02", 490.0, 45.0, 2, 1.0, false, false, false},
+        {"EDGE_03_11", "INT_03", "INT_11", 500.0, 45.0, 2, 1.0, false, false, false},
+        {"EDGE_11_03", "INT_11", "INT_03", 500.0, 45.0, 2, 1.0, false, false, false},
+        {"EDGE_04_12", "INT_04", "INT_12", 510.0, 45.0, 2, 1.0, false, false, false},
+        {"EDGE_12_04", "INT_12", "INT_04", 510.0, 45.0, 2, 1.0, false, false, false},
+
+        {"EDGE_03_TRAUMA", "INT_03", "HOSP_CITY_TRAUMA", 350.0, 45.0, 2, 1.0, false, false, false},
+        {"EDGE_TRAUMA_03", "HOSP_CITY_TRAUMA", "INT_03", 350.0, 45.0, 2, 1.0, false, false, false},
+        {"EDGE_05_METRO", "INT_05", "HOSP_METRO_GENERAL", 290.0, 40.0, 2, 1.0, false, false, false},
+        {"EDGE_METRO_05", "HOSP_METRO_GENERAL", "INT_05", 290.0, 40.0, 2, 1.0, false, false, false},
+        {"EDGE_12_JUDE", "INT_12", "HOSP_ST_JUDE", 310.0, 40.0, 2, 1.0, false, false, false},
+        {"EDGE_JUDE_12", "HOSP_ST_JUDE", "INT_12", 310.0, 40.0, 2, 1.0, false, false, false},
+        {"EDGE_08_OUTPOST", "INT_08", "AMB_STATION_2", 360.0, 45.0, 2, 1.0, false, false, false},
+        {"EDGE_OUTPOST_08", "AMB_STATION_2", "INT_08", 360.0, 45.0, 2, 1.0, false, false, false}
     };
 
     for (const auto& e : defaultEdges) {
@@ -88,6 +147,19 @@ bool CityModel::LoadFromConfigFile(const std::string& /*configFilePath*/) {
     m_intersections["INT_A"] = std::make_shared<VirtualIntersection>("INT_A", "Brigade Road / MG Road", 12.9716, 77.5946);
     m_intersections["INT_B"] = std::make_shared<VirtualIntersection>("INT_B", "MG Road / Residency Road", 12.9725, 77.5958);
     m_intersections["INT_C"] = std::make_shared<VirtualIntersection>("INT_C", "Hospital Approach Avenue", 12.9738, 77.5972);
+
+    m_intersections["INT_01"] = m_intersections["INT_A"];
+    m_intersections["INT_02"] = m_intersections["INT_B"];
+    m_intersections["INT_03"] = m_intersections["INT_C"];
+    m_intersections["INT_04"] = std::make_shared<VirtualIntersection>("INT_04", "Trinity Circle", 12.9745, 77.5990);
+    m_intersections["INT_05"] = std::make_shared<VirtualIntersection>("INT_05", "Victoria Hospital Junction", 12.9675, 77.5940);
+    m_intersections["INT_06"] = std::make_shared<VirtualIntersection>("INT_06", "Koramangala Ring Road", 12.9685, 77.5960);
+    m_intersections["INT_07"] = std::make_shared<VirtualIntersection>("INT_07", "Indiranagar 100ft Junction", 12.9700, 77.5980);
+    m_intersections["INT_08"] = std::make_shared<VirtualIntersection>("INT_08", "Old Airport Expressway", 12.9715, 77.6000);
+    m_intersections["INT_09"] = std::make_shared<VirtualIntersection>("INT_09", "Cubbon Park North Cross", 12.9755, 77.5935);
+    m_intersections["INT_10"] = std::make_shared<VirtualIntersection>("INT_10", "Queens Road Interlink", 12.9765, 77.5950);
+    m_intersections["INT_11"] = std::make_shared<VirtualIntersection>("INT_11", "Cantonment Central", 12.9775, 77.5965);
+    m_intersections["INT_12"] = std::make_shared<VirtualIntersection>("INT_12", "Halasuru Lake Overpass", 12.9785, 77.5985);
 
     // 4. Virtual Hospitals
     m_hospitals["HOSP_CITY_TRAUMA"] = std::make_shared<VirtualHospital>("HOSP_CITY_TRAUMA", "City Trauma Center", 12.9750, 77.5985, 1, 12, 24, 8);

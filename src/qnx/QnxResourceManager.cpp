@@ -15,8 +15,12 @@ namespace aegis {
 namespace qnx {
 
 // Hook invoked by InvokeDevctl() in non-QNX simulation
-int SimulatedDevctlDispatcher(int fd, int dcmd, void* dataPtr, size_t nBytes) {
+int SimulatedDevctlDispatcher(int fd, uint32_t dcmd, void* dataPtr, size_t nBytes) {
     return QnxResourceManager::Instance().DispatchDevctl(fd, dcmd, dataPtr, nBytes);
+}
+
+int SimulatedDevctlDispatcher(int fd, int dcmd, void* dataPtr, size_t nBytes) {
+    return QnxResourceManager::Instance().DispatchDevctl(fd, static_cast<uint32_t>(dcmd), dataPtr, nBytes);
 }
 
 // =============================================================================
@@ -264,7 +268,7 @@ int QnxResourceManager::Close(int fd) {
     return 0;
 }
 
-int QnxResourceManager::DispatchDevctl(int fd, int dcmd, void* dataPtr, size_t nBytes) {
+int QnxResourceManager::DispatchDevctl(int fd, uint32_t dcmd, void* dataPtr, size_t nBytes) {
     (void)nBytes;
     std::lock_guard<std::mutex> lock(m_mutex);
     auto it = m_openFiles.find(fd);
@@ -360,6 +364,10 @@ int QnxResourceManager::DispatchDevctl(int fd, int dcmd, void* dataPtr, size_t n
         default:
             return -1;
     }
+}
+
+int QnxResourceManager::DispatchDevctl(int fd, int dcmd, void* dataPtr, size_t nBytes) {
+    return DispatchDevctl(fd, static_cast<uint32_t>(dcmd), dataPtr, nBytes);
 }
 
 bool QnxResourceManager::GetNodeStats(const std::string& path, DeviceNodeInfo& outInfo) const {

@@ -26,7 +26,7 @@ struct RelayChannelState {
     uint8_t channel{1};
     uint32_t gpioPin{17};
     std::string assignedFunction{"ROAD_A_RED"};
-    bool activeLow{true};
+    bool activeLow{false};
     bool isEnergized{false};
     uint64_t switchCount{0};
     bool hasFault{false};
@@ -74,7 +74,7 @@ public:
     RelayController& operator=(const RelayController&) = delete;
 
     // Lifecycle
-    bool Initialize(const std::vector<RelayChannelDef>& channels, bool activeLow = true);
+    bool Initialize(const std::vector<RelayChannelDef>& channels, bool activeLow = false);
     void Shutdown();
     bool IsInitialized() const;
 
@@ -99,7 +99,7 @@ private:
     mutable std::mutex m_mutex;
     std::shared_ptr<bsp::RaspberryPi4BSP> m_bsp;
     bool m_initialized{false};
-    bool m_defaultActiveLow{true};
+    bool m_defaultActiveLow{false};
     std::unordered_map<uint8_t, RelayChannelState> m_channels;
     RelayPostReport m_lastPostReport;
 };

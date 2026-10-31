@@ -89,8 +89,8 @@ bool IntersectionHardware::Initialize(const DualSignalPins& pins,
         return false;
     }
 
-    // 3. Initialize Relays & Traffic Lights
-    if (!m_relayController->Initialize(relays, true)) {
+    // 3. Initialize Relays & Traffic Lights (Direct Active-HIGH GPIO LED drive)
+    if (!m_relayController->Initialize(relays, false)) {
         m_logger->Error("HARDWARE", "Relay controller initialization failed. Aborting startup.");
         Shutdown();
         return false;

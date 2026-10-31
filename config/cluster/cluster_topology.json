@@ -22,7 +22,7 @@
       "port": 9001,
       "hardware": "Raspberry Pi 4 Model B (4 GB)",
       "os": "QNX Neutrino RTOS 8.0 (aarch64le)",
-      "description": "Intersection A: Main St & 1st Ave (Relay Bank + IR Sensor)"
+      "description": "Intersection A: Main St & 1st Ave (Direct GPIO LED Module + IR Sensor)"
     },
     {
       "nodeId": "INT_B",
@@ -31,7 +31,7 @@
       "port": 9002,
       "hardware": "Raspberry Pi 4 Model B (4 GB)",
       "os": "QNX Neutrino RTOS 8.0 (aarch64le)",
-      "description": "Intersection B: Main St & 2nd Ave (Relay Bank + IR Sensor)"
+      "description": "Intersection B: Main St & 2nd Ave (Direct GPIO LED Module + IR Sensor)"
     },
     {
       "nodeId": "INT_C",
@@ -40,7 +40,7 @@
       "port": 9003,
       "hardware": "Raspberry Pi 4 Model B (4 GB)",
       "os": "QNX Neutrino RTOS 8.0 (aarch64le)",
-      "description": "Intersection C: Hospital Approach & 3rd Ave (Relay Bank + IR Sensor)"
+      "description": "Intersection C: Hospital Approach & 3rd Ave (Direct GPIO LED Module + IR Sensor)"
     }
   ],
   "network": {

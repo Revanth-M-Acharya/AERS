@@ -34,10 +34,10 @@ public:
      * @param yellowPin BCM GPIO pin for Channel 2 / YELLOW lamp (e.g. GPIO 27).
      * @param greenPin BCM GPIO pin for Channel 3 / GREEN lamp (e.g. GPIO 22).
      * @param auxPin BCM GPIO pin for Channel 4 / AUX lamp (e.g. GPIO 23).
-     * @param activeLow True if relay module energizes on LOW level (optocoupler relay).
+     * @param activeLow False for direct Active-HIGH LED drive (3.3V GPIO), true if active-low module.
      * @return true on success, false on GPIO configuration failure.
      */
-    bool Initialize(int redPin = 17, int yellowPin = 27, int greenPin = 22, int auxPin = 23, bool activeLow = true);
+    bool Initialize(int redPin = 17, int yellowPin = 27, int greenPin = 22, int auxPin = 23, bool activeLow = false);
 
     /**
      * @brief Safe shutdown: de-energizes all relay channels.
@@ -77,7 +77,7 @@ private:
     int pinYellow_{27};
     int pinGreen_{22};
     int pinAux_{23};
-    bool activeLow_{true};
+    bool activeLow_{false};
 
     std::atomic<bool> initialized_{false};
     std::atomic<bool> redActive_{false};

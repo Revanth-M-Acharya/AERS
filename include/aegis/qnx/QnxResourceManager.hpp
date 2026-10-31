@@ -136,6 +136,7 @@ public:
     /**
      * @brief Dispatches a devctl() command on an open device descriptor.
      */
+    int DispatchDevctl(int fd, uint32_t dcmd, void* dataPtr, size_t nBytes);
     int DispatchDevctl(int fd, int dcmd, void* dataPtr, size_t nBytes);
 
     /**

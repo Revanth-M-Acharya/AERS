@@ -120,7 +120,7 @@ private:
     std::vector<RelayChannelDef> m_relays;
     IrSensorParameters m_irSensors;
     TimingParameters m_timings;
-    bool m_relayActiveLow{true};
+    bool m_relayActiveLow{false};
 };
 
 } // namespace hardware

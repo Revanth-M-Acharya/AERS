@@ -7,25 +7,27 @@
 # ==============================================================================
 
 ARCH ?= aarch64le
-BUILD_TYPE ?= Debug
+BUILD_TYPE ?= Release
 
 # Detect QNX Host Toolchain
 ifdef QNX_HOST
     CXX = $(QNX_HOST)/usr/bin/q++
     CC  = $(QNX_HOST)/usr/bin/qcc
     AR  = $(QNX_HOST)/usr/bin/ntoaarch64-ar
+    QCC_SPEC = gcc_nto$(ARCH)
+    CXXFLAGS = -V$(QCC_SPEC)_cpp -Y_gpp -lang-c++ -w8 -std=c++17 \
+               -D__QNX__ -D__QNXNTO__ -DAEGIS_TARGET_QNX=1 -D_QNX_SOURCE
+    PLATFORM_LIBS = -lsocket
 else
-    CXX ?= q++
-    CC  ?= qcc
+    # Fallback to local compiler for syntax/build verification when QNX_HOST not set
+    CXX ?= c++
+    CC  ?= cc
     AR  ?= ar
+    CXXFLAGS = -std=c++17 -Wall -Wextra -DAEGIS_TARGET_QNX=1 -D_QNX_SOURCE
+    PLATFORM_LIBS = -lpthread
 endif
 
-# Compiler Specification & Common Flags
-QCC_SPEC = gcc_nto$(ARCH)
-CXXFLAGS = -V$(QCC_SPEC)_cpp -Y_gpp -lang-c++ -w8 -std=c++17 \
-           -D__QNX__ -D__QNXNTO__ -DAEGIS_TARGET_QNX=1 -D_QNX_SOURCE
-
-INCLUDES = -Iinclude -Isrc -Inetwork
+INCLUDES = -Iinclude -Isrc -Inetwork -I.
 
 # Optimization & Debug Levels
 ifeq ($(BUILD_TYPE),Release)
@@ -47,7 +49,13 @@ COMMON_SRCS = src/common/geo_utils.cpp src/common/time_utils.cpp src/common/uuid
               src/common/error.cpp src/common/event.cpp src/common/timer.cpp \
               src/common/json_helper.cpp src/common/validator.cpp
 
-CONFIG_SRCS = src/config/config_manager.cpp src/config/NodeConfig.cpp
+CONFIG_SRCS = src/config/config_manager.cpp src/config/NodeConfig.cpp src/config/IntersectionsConfig.cpp
+SMART_AEGIS_V2_SRCS = src/gpio/SimulationGpioController.cpp \
+                      src/gpio/QnxHardwareGpioController.cpp \
+                      src/protocol/AegisProtocol.cpp \
+                      src/intersection_service/IntersectionService.cpp \
+                      src/coordinator_client/CoordinatorClientManager.cpp \
+                      src/simulation/SimulationRunner.cpp
 LOGGER_SRCS = src/logger/logger.cpp src/logger/EventLogger.cpp src/logger/SimulationRecorder.cpp
 SAFETY_SRCS = src/safety/watchdog.cpp src/safety/safety_monitor.cpp
 NETWORK_SRCS = src/network/retry_policy.cpp src/network/serializer.cpp \
@@ -147,20 +155,208 @@ HARDWARE_SRCS = src/hardware/HardwareConfiguration.cpp \
                 src/hardware/WirelessQualityMonitor.cpp \
                 src/hardware/BootManager.cpp \
                 src/hardware/ShutdownManager.cpp
+PHASE3_SRCS = src/corridor/CorridorDeadlineMonitor.cpp \
+              src/corridor/EmergencyTimeoutManager.cpp \
+              src/corridor/DynamicCorridorReleaseManager.cpp \
+              src/corridor/RouteProgressTracker.cpp \
+              src/corridor/SignalTimelineGenerator.cpp \
+              src/cluster/ClusterHealthMonitor.cpp \
+              src/recovery/FaultRecoveryManager.cpp
+PHASE4_SRCS = src/qnx/QnxDevctl.cpp \
+              src/qnx/QnxMessagePassing.cpp \
+              src/qnx/QnxPulseManager.cpp \
+              src/qnx/QnxTimerService.cpp \
+              src/qnx/QnxThreadScheduler.cpp \
+              src/qnx/QnxInterruptManager.cpp \
+              src/qnx/QnxResourceManager.cpp \
+              src/qnx/QnxDiagnostics.cpp
+
 QNX_NET_SRCS = network/message.cpp network/tcp_server.cpp network/tcp_client.cpp
+
+COORD_P2_SRCS = common/utils/TimeUtils.cpp \
+                common/utils/ThreadUtils.cpp \
+                common/protocol/Packet.cpp \
+                common/config/ServerConfig.cpp \
+                common/network/TcpSocket.cpp \
+                coordinator/logger/CoordinatorLogger.cpp \
+                coordinator/server/ClientSession.cpp \
+                coordinator/server/CoordinatorServer.cpp
+
+TRAFFIC_NODE_P3_SRCS = traffic_node/config/TrafficNodeConfig.cpp \
+                       traffic_node/logger/TrafficLogger.cpp \
+                       traffic_node/gpio/MockGpioDriver.cpp \
+                       traffic_node/gpio/Rpi4GpioDriver.cpp \
+                       traffic_node/relay_controller/RelayController.cpp \
+                       traffic_node/lamp_controller/LampController.cpp \
+                       traffic_node/signal_controller/TrafficSignalFSM.cpp \
+                       traffic_node/signal_controller/SignalController.cpp \
+                       traffic_node/watchdog/NodeWatchdog.cpp \
+                       traffic_node/client/ConnectionManager.cpp \
+                       traffic_node/client/HeartbeatManager.cpp \
+                       traffic_node/client/TrafficClient.cpp \
+                       traffic_node/protocol/TrafficCommandDispatcher.cpp
+
+INTELLIGENCE_P4_SRCS = coordinator/intelligence/graph/RoadGraph.cpp \
+                       coordinator/intelligence/planner/DijkstraRoutePlanner.cpp \
+                       coordinator/intelligence/eta/ContinuousETAEngine.cpp \
+                       coordinator/intelligence/scheduler/PriorityScheduler.cpp \
+                       coordinator/intelligence/corridor/GreenCorridorPlanner.cpp \
+                       coordinator/intelligence/execution/ExecutionPlanGenerator.cpp \
+                       coordinator/intelligence/safety/SafetyPolicyEngine.cpp \
+                       coordinator/intelligence/config/IntelligenceConfig.cpp
+
+ORCHESTRATION_P5_SRCS = coordinator/orchestration/state/CoordinatorStateManager.cpp \
+                        coordinator/orchestration/event_bus/EventBus.cpp \
+                        coordinator/orchestration/session/EmergencySessionManager.cpp \
+                        coordinator/orchestration/fsm/CoordinatorFSM.cpp \
+                        coordinator/orchestration/dispatcher/ExecutionDispatcher.cpp \
+                        coordinator/orchestration/sync/NodeClockTracker.cpp \
+                        coordinator/orchestration/monitor/NodeHealthMonitor.cpp \
+                        coordinator/orchestration/monitor/ExecutionMonitor.cpp \
+                        coordinator/orchestration/recovery/RecoveryManager.cpp \
+                        coordinator/orchestration/config/OrchestrationConfig.cpp
+
+CONTROL_CENTER_P6_SRCS = coordinator/control_center/EmergencyValidator.cpp \
+                         coordinator/control_center/EmergencyPriorityEngine.cpp \
+                         coordinator/control_center/IncidentManager.cpp \
+                         coordinator/control_center/ResourceAllocator.cpp \
+                         coordinator/control_center/DispatcherConsole.cpp \
+                         coordinator/control_center/EmergencyControlCenter.cpp
+
+HOSPITAL_P7_SRCS = coordinator/hospital/HospitalRegistry.cpp \
+                   coordinator/hospital/HospitalSelectionEngine.cpp \
+                   coordinator/hospital/BedAvailabilityManager.cpp \
+                   coordinator/hospital/HospitalNotificationManager.cpp \
+                   coordinator/hospital/DoctorPreparationManager.cpp \
+                   coordinator/hospital/PatientHandoverManager.cpp
+
+PERCEPTION_SRCS = coordinator/perception/RoadConditionEvent.cpp \
+                  coordinator/perception/CameraRegistry.cpp \
+                  coordinator/perception/CameraFeedManager.cpp \
+                  coordinator/perception/VideoStreamManager.cpp \
+                  coordinator/perception/RoadConfidenceEngine.cpp \
+                  coordinator/perception/RoadEventPublisher.cpp \
+                  coordinator/perception/RoadSituationAwarenessEngine.cpp \
+                  coordinator/perception/CoordinatorIntegration.cpp \
+                  coordinator/perception/analytics/TrafficDensityAnalyzer.cpp \
+                  coordinator/perception/analytics/QueueLengthEstimator.cpp \
+                  coordinator/perception/analytics/LaneOccupancyEstimator.cpp \
+                  coordinator/perception/analytics/RoadHealthAnalyzer.cpp \
+                  coordinator/perception/analytics/IncidentDetectionEngine.cpp \
+                  coordinator/perception/analytics/EmergencyVehicleDetectionEngine.cpp \
+                  coordinator/perception/analytics/RoadBlockageAnalyzer.cpp \
+                  coordinator/perception/analytics/CongestionAnalyzer.cpp \
+                  coordinator/perception/analytics/TrafficPredictionEngine.cpp \
+                  coordinator/perception/analytics/CameraHealthMonitor.cpp \
+                  coordinator/perception/analytics/RoadSuitabilityCalculator.cpp \
+                  coordinator/perception/analytics/HistoricalTrafficAnalytics.cpp \
+                  coordinator/perception/digital_twin/PerceptionDigitalTwinBridge.cpp
+
+DIGITAL_TWIN_SRCS = digital_twin/CityModel.cpp \
+                    digital_twin/SimulationClock.cpp \
+                    digital_twin/TelemetryCollector.cpp \
+                    digital_twin/DashboardEventBridge.cpp \
+                    digital_twin/MissionTimeline.cpp \
+                    digital_twin/MissionReplayEngine.cpp \
+                    digital_twin/ScenarioPlaybackController.cpp \
+                    digital_twin/SimulationScenarioManager.cpp \
+                    digital_twin/visualizers/AmbulanceVisualizer.cpp \
+                    digital_twin/visualizers/TrafficSignalVisualizer.cpp \
+                    digital_twin/visualizers/CorridorVisualizer.cpp \
+                    digital_twin/visualizers/CameraVisualizer.cpp \
+                    digital_twin/visualizers/HospitalVisualizer.cpp \
+                    digital_twin/visualizers/CoordinatorVisualizer.cpp \
+                    digital_twin/PerformanceMonitor.cpp \
+                    digital_twin/StatisticsEngine.cpp \
+                    digital_twin/BenchmarkRecorder.cpp \
+                    digital_twin/ReportExporter.cpp \
+                    digital_twin/DashboardController.cpp \
+                    digital_twin/DigitalTwinEngine.cpp
+
+PRODUCTION_SRCS = production/health/HealthSupervisor.cpp \
+                  production/health/WatchdogManager.cpp \
+                  production/health/RuntimeDiagnostics.cpp \
+                  production/health/HeartbeatSupervisor.cpp \
+                  production/fault_tolerance/NodeRecoveryManager.cpp \
+                  production/fault_tolerance/MissionContinuityManager.cpp \
+                  production/fault_tolerance/LifecycleManager.cpp \
+                  production/communication/ReliableChannel.cpp \
+                  production/communication/PacketValidator.cpp \
+                  production/security/NodeAuthenticator.cpp \
+                  production/security/MessageSecurityGuard.cpp \
+                  production/security/SecurityAuditLogger.cpp \
+                  production/config/ProductionConfigManager.cpp \
+                  production/config/VersionManager.cpp \
+                  production/reliability/DeadlockDetector.cpp \
+                  production/reliability/ResourceLeakMonitor.cpp \
+                  production/reliability/SoakTestRunner.cpp \
+                  production/fault_injection/FaultInjector.cpp \
+                  production/benchmark/ProductionBenchmarkReporter.cpp \
+                  production/ProductionEngine.cpp
+
+HARDWARE_INT_SRCS = hardware_integration/gpio/SymbolicGpioHAL.cpp \
+                    hardware_integration/led/PrototypeLedDriver.cpp \
+                    hardware_integration/relay/ProductionRelayDriver.cpp \
+                    hardware_integration/sensor/IRSensorDriver.cpp \
+                    hardware_integration/config/NodeConfigManager.cpp \
+                    hardware_integration/commissioning/CommissioningManager.cpp \
+                    hardware_integration/cluster/ClusterSupervisor.cpp \
+                    hardware_integration/validation/DeploymentValidator.cpp \
+                    hardware_integration/logging/CentralizedDeploymentLogger.cpp \
+                    hardware_integration/demo/BuzzerController.cpp \
+                    hardware_integration/demo/EmergencySwitchDriver.cpp \
+                    hardware_integration/demo/PoliceOverrideSwitchDriver.cpp \
+                    hardware_integration/demo/OledV2XDisplay.cpp \
+                    hardware_integration/demo/Intersection2PriorityDemonstrator.cpp \
+                    hardware_integration/demo/PoliceReplanningCoordinator.cpp \
+                    hardware_integration/demo/HardwareDemoOrchestrator.cpp
+
+COMMAND_CENTER_SRCS = command_center/fleet/EmsFleetManager.cpp \
+                      command_center/tracking/LiveAmbulanceTracker.cpp \
+                      command_center/mission/MissionDatabase.cpp \
+                      command_center/hospital/HospitalOperationsDashboard.cpp \
+                      command_center/traffic/TrafficOperationsDashboard.cpp \
+                      command_center/cluster/ClusterMonitor.cpp \
+                      command_center/health/SystemHealthMonitor.cpp \
+                      command_center/analytics/RealTimeAnalyticsEngine.cpp \
+                      command_center/replay/MissionReplayController.cpp \
+                      command_center/dashboard/CommandCenterConsole.cpp \
+                      command_center/bridge/CommandCenterEventBridge.cpp \
+                      command_center/CommandCenterFacade.cpp
 
 ALL_SRCS = $(COMMON_SRCS) $(CONFIG_SRCS) $(LOGGER_SRCS) $(SAFETY_SRCS) $(NETWORK_SRCS) \
            $(COMM_MODULE_SRCS) $(SCHED_SRCS) $(ROUTE_SRCS) $(COORD_SRCS) $(AMB_SRCS) $(TRAFFIC_SRCS) \
            $(INTERSECTION_SRCS) $(SYSTEM_SRCS) $(MEDICAL_SRCS) $(SCHEDULER_SRCS) $(CONTROL_SRCS) $(HOSP_SRCS) $(TRFDASH_SRCS) \
-           $(TRAFFIC_SIGNAL_SRCS) $(GREEN_CORRIDOR_SRCS) $(GREEN_WAVE_SRCS) $(ORCHESTRATOR_SRCS) $(REPLANNING_SRCS) $(MULTI_CORRIDOR_SRCS) $(DISTRIBUTED_SIGNAL_SRCS) $(PREDICTIVE_TRAFFIC_SRCS) $(FLEET_MANAGEMENT_SRCS) $(HOSPITAL_SELECTION_SRCS) $(HOSPITAL_MANAGEMENT_SRCS) $(MISSION_EXECUTION_SRCS) $(INCIDENT_COMMAND_SRCS) $(TRAFFIC_NETWORK_ORCHESTRATOR_SRCS) $(DISTRIBUTED_CONSENSUS_SRCS) $(RPI_CLUSTER_SRCS) $(SYSTEM_DIAGNOSTICS_SRCS) $(HARDWARE_ABSTRACTION_SRCS) $(QNX_DRIVER_FRAMEWORK_SRCS) $(BSP_SRCS) $(RUNTIME_SRCS) $(DEPLOYMENT_SRCS) $(SIMULATOR_CORE_SRCS) $(HARDWARE_SRCS)
+           $(TRAFFIC_SIGNAL_SRCS) $(GREEN_CORRIDOR_SRCS) $(GREEN_WAVE_SRCS) $(ORCHESTRATOR_SRCS) $(REPLANNING_SRCS) $(MULTI_CORRIDOR_SRCS) $(DISTRIBUTED_SIGNAL_SRCS) $(PREDICTIVE_TRAFFIC_SRCS) $(FLEET_MANAGEMENT_SRCS) $(HOSPITAL_SELECTION_SRCS) $(HOSPITAL_MANAGEMENT_SRCS) $(MISSION_EXECUTION_SRCS) $(INCIDENT_COMMAND_SRCS) $(TRAFFIC_NETWORK_ORCHESTRATOR_SRCS) $(DISTRIBUTED_CONSENSUS_SRCS) $(RPI_CLUSTER_SRCS) $(SYSTEM_DIAGNOSTICS_SRCS) $(HARDWARE_ABSTRACTION_SRCS) $(QNX_DRIVER_FRAMEWORK_SRCS) $(BSP_SRCS) $(RUNTIME_SRCS) $(DEPLOYMENT_SRCS) $(SIMULATOR_CORE_SRCS) $(HARDWARE_SRCS) $(PHASE3_SRCS) $(PHASE4_SRCS) $(SMART_AEGIS_V2_SRCS)
 
 ALL_OBJS = $(patsubst src/%.cpp,$(OBJ_DIR)/%.o,$(ALL_SRCS))
 QNX_NET_OBJS = $(patsubst network/%.cpp,$(OBJ_DIR)/qnx_network/%.o,$(QNX_NET_SRCS))
+COORD_P2_OBJS = $(patsubst %.cpp,$(OBJ_DIR)/%.o,$(COORD_P2_SRCS))
+TRAFFIC_NODE_P3_OBJS = $(patsubst %.cpp,$(OBJ_DIR)/%.o,$(TRAFFIC_NODE_P3_SRCS))
+INTELLIGENCE_P4_OBJS = $(patsubst %.cpp,$(OBJ_DIR)/%.o,$(INTELLIGENCE_P4_SRCS))
+ORCHESTRATION_P5_OBJS = $(patsubst %.cpp,$(OBJ_DIR)/%.o,$(ORCHESTRATION_P5_SRCS))
+CONTROL_CENTER_P6_OBJS = $(patsubst %.cpp,$(OBJ_DIR)/%.o,$(CONTROL_CENTER_P6_SRCS))
+HOSPITAL_P7_OBJS = $(patsubst %.cpp,$(OBJ_DIR)/%.o,$(HOSPITAL_P7_SRCS))
+PERCEPTION_OBJS = $(patsubst %.cpp,$(OBJ_DIR)/%.o,$(PERCEPTION_SRCS))
+DIGITAL_TWIN_OBJS = $(patsubst %.cpp,$(OBJ_DIR)/%.o,$(DIGITAL_TWIN_SRCS))
+PRODUCTION_OBJS = $(patsubst %.cpp,$(OBJ_DIR)/%.o,$(PRODUCTION_SRCS))
+HARDWARE_INT_OBJS = $(patsubst %.cpp,$(OBJ_DIR)/%.o,$(HARDWARE_INT_SRCS))
+COMMAND_CENTER_OBJS = $(patsubst %.cpp,$(OBJ_DIR)/%.o,$(COMMAND_CENTER_SRCS))
 
 STATIC_LIB = $(LIB_DIR)/libaegis.a
 
-# Daemon Executables
-APPS = $(BIN_DIR)/aegis_coordinator $(BIN_DIR)/aegis_ambulance $(BIN_DIR)/aegis_traffic_controller $(BIN_DIR)/aegis_intersection_node
+# Executables Suite (8 Target Executables + Aliases)
+APPS = $(BIN_DIR)/coordinator \
+       $(BIN_DIR)/traffic_node \
+       $(BIN_DIR)/intersection \
+       $(BIN_DIR)/simulation \
+       $(BIN_DIR)/validator \
+       $(BIN_DIR)/command_center \
+       $(BIN_DIR)/digital_twin \
+       $(BIN_DIR)/hardware_demo \
+       $(BIN_DIR)/driver_dashboard \
+       $(BIN_DIR)/priority_scheduler \
+       $(BIN_DIR)/gui
 
 .PHONY: all clean directories info
 
@@ -175,38 +371,78 @@ directories:
 	@mkdir -p $(OBJ_DIR)/common $(OBJ_DIR)/config $(OBJ_DIR)/logger $(OBJ_DIR)/safety
 	@mkdir -p $(OBJ_DIR)/network $(OBJ_DIR)/communication $(OBJ_DIR)/priority_scheduler $(OBJ_DIR)/route_planner
 	@mkdir -p $(OBJ_DIR)/coordinator $(OBJ_DIR)/ambulance $(OBJ_DIR)/traffic_controller $(OBJ_DIR)/intersection $(OBJ_DIR)/system $(OBJ_DIR)/medical $(OBJ_DIR)/scheduler $(OBJ_DIR)/control $(OBJ_DIR)/traffic_signal $(OBJ_DIR)/green_corridor $(OBJ_DIR)/green_wave $(OBJ_DIR)/orchestrator $(OBJ_DIR)/replanning $(OBJ_DIR)/multi_corridor $(OBJ_DIR)/distributed_signal $(OBJ_DIR)/predictive_traffic $(OBJ_DIR)/fleet_management $(OBJ_DIR)/hospital_selection $(OBJ_DIR)/hospital_management $(OBJ_DIR)/mission_execution $(OBJ_DIR)/incident_command $(OBJ_DIR)/traffic_network_orchestrator $(OBJ_DIR)/distributed_consensus $(OBJ_DIR)/rpi_cluster $(OBJ_DIR)/system_diagnostics $(OBJ_DIR)/hardware_abstraction $(OBJ_DIR)/qnx_driver_framework $(OBJ_DIR)/bsp $(OBJ_DIR)/qnx_network $(OBJ_DIR)/runtime $(OBJ_DIR)/deployment $(OBJ_DIR)/simulator $(OBJ_DIR)/hardware
-	@mkdir -p $(OBJ_DIR)/hospital_dashboard $(OBJ_DIR)/traffic_dashboard
+	@mkdir -p $(OBJ_DIR)/hospital_dashboard $(OBJ_DIR)/traffic_dashboard $(OBJ_DIR)/corridor $(OBJ_DIR)/cluster $(OBJ_DIR)/recovery $(OBJ_DIR)/qnx $(OBJ_DIR)/gpio $(OBJ_DIR)/intersection_service $(OBJ_DIR)/coordinator_client $(OBJ_DIR)/simulation
+	@mkdir -p $(OBJ_DIR)/common/utils $(OBJ_DIR)/common/protocol $(OBJ_DIR)/common/config $(OBJ_DIR)/common/network
+	@mkdir -p $(OBJ_DIR)/coordinator/logger $(OBJ_DIR)/coordinator/server $(OBJ_DIR)/coordinator/intelligence/graph $(OBJ_DIR)/coordinator/intelligence/planner $(OBJ_DIR)/coordinator/intelligence/eta $(OBJ_DIR)/coordinator/intelligence/scheduler $(OBJ_DIR)/coordinator/intelligence/corridor $(OBJ_DIR)/coordinator/intelligence/execution $(OBJ_DIR)/coordinator/intelligence/safety $(OBJ_DIR)/coordinator/intelligence/config
+	@mkdir -p $(OBJ_DIR)/coordinator/orchestration/state $(OBJ_DIR)/coordinator/orchestration/event_bus $(OBJ_DIR)/coordinator/orchestration/session $(OBJ_DIR)/coordinator/orchestration/fsm $(OBJ_DIR)/coordinator/orchestration/dispatcher $(OBJ_DIR)/coordinator/orchestration/sync $(OBJ_DIR)/coordinator/orchestration/monitor $(OBJ_DIR)/coordinator/orchestration/recovery $(OBJ_DIR)/coordinator/orchestration/config
+	@mkdir -p $(OBJ_DIR)/coordinator/control_center $(OBJ_DIR)/coordinator/hospital
+	@mkdir -p $(OBJ_DIR)/coordinator/perception/analytics $(OBJ_DIR)/coordinator/perception/digital_twin
+	@mkdir -p $(OBJ_DIR)/traffic_node/config $(OBJ_DIR)/traffic_node/logger $(OBJ_DIR)/traffic_node/gpio $(OBJ_DIR)/traffic_node/relay_controller $(OBJ_DIR)/traffic_node/lamp_controller $(OBJ_DIR)/traffic_node/signal_controller $(OBJ_DIR)/traffic_node/watchdog $(OBJ_DIR)/traffic_node/client $(OBJ_DIR)/traffic_node/protocol
+	@mkdir -p $(OBJ_DIR)/digital_twin/visualizers $(OBJ_DIR)/production/health $(OBJ_DIR)/production/fault_tolerance $(OBJ_DIR)/production/communication $(OBJ_DIR)/production/security $(OBJ_DIR)/production/config $(OBJ_DIR)/production/reliability $(OBJ_DIR)/production/fault_injection $(OBJ_DIR)/production/benchmark
+	@mkdir -p $(OBJ_DIR)/hardware_integration/gpio $(OBJ_DIR)/hardware_integration/led $(OBJ_DIR)/hardware_integration/relay $(OBJ_DIR)/hardware_integration/sensor $(OBJ_DIR)/hardware_integration/config $(OBJ_DIR)/hardware_integration/commissioning $(OBJ_DIR)/hardware_integration/cluster $(OBJ_DIR)/hardware_integration/validation $(OBJ_DIR)/hardware_integration/logging $(OBJ_DIR)/hardware_integration/demo
+	@mkdir -p $(OBJ_DIR)/command_center/fleet $(OBJ_DIR)/command_center/tracking $(OBJ_DIR)/command_center/mission $(OBJ_DIR)/command_center/hospital $(OBJ_DIR)/command_center/traffic $(OBJ_DIR)/command_center/cluster $(OBJ_DIR)/command_center/health $(OBJ_DIR)/command_center/analytics $(OBJ_DIR)/command_center/replay $(OBJ_DIR)/command_center/dashboard $(OBJ_DIR)/command_center/bridge
 	@mkdir -p $(OBJ_DIR)/apps
 
 $(OBJ_DIR)/%.o: src/%.cpp | directories
-	@echo "[Q++ $<]"
+	@echo "[CXX $<]"
+	@$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
+
+$(OBJ_DIR)/%.o: %.cpp | directories
+	@echo "[CXX $<]"
 	@$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
 
 $(OBJ_DIR)/qnx_network/%.o: network/%.cpp | directories
-	@echo "[Q++ $<]"
+	@echo "[CXX $<]"
 	@$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
 
-$(STATIC_LIB): $(ALL_OBJS) $(QNX_NET_OBJS) | directories
+$(STATIC_LIB): $(ALL_OBJS) $(QNX_NET_OBJS) $(COORD_P2_OBJS) $(TRAFFIC_NODE_P3_OBJS) $(INTELLIGENCE_P4_OBJS) $(ORCHESTRATION_P5_OBJS) $(CONTROL_CENTER_P6_OBJS) $(HOSPITAL_P7_OBJS) $(PERCEPTION_OBJS) $(DIGITAL_TWIN_OBJS) $(PRODUCTION_OBJS) $(HARDWARE_INT_OBJS) $(COMMAND_CENTER_OBJS) | directories
 	@echo "[AR $@] $(STATIC_LIB)"
-	@$(AR) rcs $@ $(ALL_OBJS) $(QNX_NET_OBJS)
+	@$(AR) rcs $@ $^
 
-$(BIN_DIR)/aegis_coordinator: src/apps/coordinator_main.cpp $(STATIC_LIB)
-	@echo "[Q++ LINK $@] $@"
-	@$(CXX) $(CXXFLAGS) $(INCLUDES) $< -L$(LIB_DIR) -laegis -o $@
+$(BIN_DIR)/coordinator: src/apps/coordinator_main.cpp $(STATIC_LIB)
+	@echo "[LINK $@] $@"
+	@$(CXX) $(CXXFLAGS) $(INCLUDES) $< -L$(LIB_DIR) -laegis $(PLATFORM_LIBS) -o $@
 
-$(BIN_DIR)/aegis_ambulance: src/apps/ambulance_main.cpp $(STATIC_LIB)
-	@echo "[Q++ LINK $@] $@"
-	@$(CXX) $(CXXFLAGS) $(INCLUDES) $< -L$(LIB_DIR) -laegis -o $@
+$(BIN_DIR)/traffic_node: traffic_node/main.cpp $(STATIC_LIB)
+	@echo "[LINK $@] $@"
+	@$(CXX) $(CXXFLAGS) $(INCLUDES) $< -L$(LIB_DIR) -laegis $(PLATFORM_LIBS) -o $@
 
-$(BIN_DIR)/aegis_traffic_controller: src/apps/traffic_main.cpp $(STATIC_LIB)
-	@echo "[Q++ LINK $@] $@"
-	@$(CXX) $(CXXFLAGS) $(INCLUDES) $< -L$(LIB_DIR) -laegis -o $@
+$(BIN_DIR)/intersection: src/apps/intersection_main.cpp $(STATIC_LIB)
+	@echo "[LINK $@] $@"
+	@$(CXX) $(CXXFLAGS) $(INCLUDES) $< -L$(LIB_DIR) -laegis $(PLATFORM_LIBS) -o $@
 
-$(BIN_DIR)/aegis_intersection_node: src/apps/intersection_main.cpp $(STATIC_LIB)
-	@echo "[Q++ LINK $@] $@"
-	@$(CXX) $(CXXFLAGS) $(INCLUDES) $< -L$(LIB_DIR) -laegis -o $@
+$(BIN_DIR)/simulation: src/apps/simulation_main.cpp $(STATIC_LIB)
+	@echo "[LINK $@] $@"
+	@$(CXX) $(CXXFLAGS) $(INCLUDES) $< -L$(LIB_DIR) -laegis $(PLATFORM_LIBS) -o $@
+
+$(BIN_DIR)/validator: src/apps/validator_main.cpp $(STATIC_LIB)
+	@echo "[LINK $@] $@"
+	@$(CXX) $(CXXFLAGS) $(INCLUDES) $< -L$(LIB_DIR) -laegis $(PLATFORM_LIBS) -o $@
+
+$(BIN_DIR)/command_center: src/apps/command_center_main.cpp $(STATIC_LIB)
+	@echo "[LINK $@] $@"
+	@$(CXX) $(CXXFLAGS) $(INCLUDES) $< -L$(LIB_DIR) -laegis $(PLATFORM_LIBS) -o $@
+
+$(BIN_DIR)/digital_twin: src/apps/digital_twin_main.cpp $(STATIC_LIB)
+	@echo "[LINK $@] $@"
+	@$(CXX) $(CXXFLAGS) $(INCLUDES) $< -L$(LIB_DIR) -laegis $(PLATFORM_LIBS) -o $@
+
+$(BIN_DIR)/hardware_demo: src/apps/hardware_demo_main.cpp $(STATIC_LIB)
+	@echo "[LINK $@] $@"
+	@$(CXX) $(CXXFLAGS) $(INCLUDES) $< -L$(LIB_DIR) -laegis $(PLATFORM_LIBS) -o $@
+
+$(BIN_DIR)/driver_dashboard: src/apps/driver_dashboard_main.cpp $(STATIC_LIB)
+	@echo "[LINK $@] $@"
+	@$(CXX) $(CXXFLAGS) $(INCLUDES) $< -L$(LIB_DIR) -laegis $(PLATFORM_LIBS) -o $@
+
+$(BIN_DIR)/priority_scheduler: src/apps/priority_scheduler_main.cpp $(STATIC_LIB)
+	@echo "[LINK $@] $@"
+	@$(CXX) $(CXXFLAGS) $(INCLUDES) $< -L$(LIB_DIR) -laegis $(PLATFORM_LIBS) -o $@
+
+$(BIN_DIR)/gui: src/apps/gui_main.cpp $(STATIC_LIB)
+	@echo "[LINK $@] $@"
+	@$(CXX) $(CXXFLAGS) $(INCLUDES) $< -L$(LIB_DIR) -laegis $(PLATFORM_LIBS) -o $@
 
 clean:
 	@rm -rf $(BUILD_DIR)
 	@echo "Cleaned QNX build artifacts."
-

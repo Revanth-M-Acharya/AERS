@@ -13,6 +13,7 @@
     // Forward declare hook to simulated device manager
     namespace aegis {
     namespace qnx {
+        int SimulatedDevctlDispatcher(int fd, uint32_t dcmd, void* dataPtr, size_t nBytes);
         int SimulatedDevctlDispatcher(int fd, int dcmd, void* dataPtr, size_t nBytes);
     }
     }
@@ -21,9 +22,9 @@
 namespace aegis {
 namespace qnx {
 
-int InvokeDevctl(int fd, int dcmd, void* dataPtr, size_t nBytes, int* infoPtr) {
+int InvokeDevctl(int fd, uint32_t dcmd, void* dataPtr, size_t nBytes, int* infoPtr) {
 #if defined(__QNX__) || defined(__QNXNTO__)
-    return devctl(fd, dcmd, dataPtr, nBytes, infoPtr);
+    return devctl(fd, static_cast<int>(dcmd), dataPtr, nBytes, infoPtr);
 #else
     (void)infoPtr;
     return SimulatedDevctlDispatcher(fd, dcmd, dataPtr, nBytes);

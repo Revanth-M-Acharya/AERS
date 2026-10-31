@@ -61,6 +61,150 @@
         "ground_pin": 30
       },
       "description": "Intersection 3 - Hospital Gate (Hardware Shortage: Blue LED Only)"
+    },
+    {
+      "id": 4,
+      "name": "INT_4",
+      "ip": "10.204.179.150",
+      "port": 5004,
+      "gpio": {
+        "red_pin": 5,
+        "blue_pin": 6,
+        "has_red": true,
+        "has_blue": true,
+        "physical_red_pin": 29,
+        "physical_blue_pin": 31,
+        "ground_pin": 30
+      },
+      "description": "Intersection 4 - Trinity Circle (East Arterial)"
+    },
+    {
+      "id": 5,
+      "name": "INT_5",
+      "ip": "10.204.179.151",
+      "port": 5005,
+      "gpio": {
+        "red_pin": 5,
+        "blue_pin": 6,
+        "has_red": true,
+        "has_blue": true,
+        "physical_red_pin": 29,
+        "physical_blue_pin": 31,
+        "ground_pin": 30
+      },
+      "description": "Intersection 5 - Victoria Hospital Junction"
+    },
+    {
+      "id": 6,
+      "name": "INT_6",
+      "ip": "10.204.179.152",
+      "port": 5006,
+      "gpio": {
+        "red_pin": 5,
+        "blue_pin": 6,
+        "has_red": true,
+        "has_blue": true,
+        "physical_red_pin": 29,
+        "physical_blue_pin": 31,
+        "ground_pin": 30
+      },
+      "description": "Intersection 6 - Koramangala Ring Road"
+    },
+    {
+      "id": 7,
+      "name": "INT_7",
+      "ip": "10.204.179.153",
+      "port": 5007,
+      "gpio": {
+        "red_pin": 5,
+        "blue_pin": 6,
+        "has_red": true,
+        "has_blue": true,
+        "physical_red_pin": 29,
+        "physical_blue_pin": 31,
+        "ground_pin": 30
+      },
+      "description": "Intersection 7 - Indiranagar 100ft Junction"
+    },
+    {
+      "id": 8,
+      "name": "INT_8",
+      "ip": "10.204.179.154",
+      "port": 5008,
+      "gpio": {
+        "red_pin": 5,
+        "blue_pin": 6,
+        "has_red": true,
+        "has_blue": true,
+        "physical_red_pin": 29,
+        "physical_blue_pin": 31,
+        "ground_pin": 30
+      },
+      "description": "Intersection 8 - Old Airport Expressway"
+    },
+    {
+      "id": 9,
+      "name": "INT_9",
+      "ip": "10.204.179.155",
+      "port": 5009,
+      "gpio": {
+        "red_pin": 5,
+        "blue_pin": 6,
+        "has_red": true,
+        "has_blue": true,
+        "physical_red_pin": 29,
+        "physical_blue_pin": 31,
+        "ground_pin": 30
+      },
+      "description": "Intersection 9 - Cubbon Park North Cross"
+    },
+    {
+      "id": 10,
+      "name": "INT_10",
+      "ip": "10.204.179.156",
+      "port": 5010,
+      "gpio": {
+        "red_pin": 5,
+        "blue_pin": 6,
+        "has_red": true,
+        "has_blue": true,
+        "physical_red_pin": 29,
+        "physical_blue_pin": 31,
+        "ground_pin": 30
+      },
+      "description": "Intersection 10 - Queens Road Interlink"
+    },
+    {
+      "id": 11,
+      "name": "INT_11",
+      "ip": "10.204.179.157",
+      "port": 5011,
+      "gpio": {
+        "red_pin": 5,
+        "blue_pin": 6,
+        "has_red": true,
+        "has_blue": true,
+        "physical_red_pin": 29,
+        "physical_blue_pin": 31,
+        "ground_pin": 30
+      },
+      "description": "Intersection 11 - Cantonment Central"
+    },
+    {
+      "id": 12,
+      "name": "INT_12",
+      "ip": "10.204.179.158",
+      "port": 5012,
+      "gpio": {
+        "red_pin": 5,
+        "blue_pin": 6,
+        "has_red": true,
+        "has_blue": true,
+        "physical_red_pin": 29,
+        "physical_blue_pin": 31,
+        "ground_pin": 30
+      },
+      "description": "Intersection 12 - Halasuru Lake Overpass"
     }
   ]
 }

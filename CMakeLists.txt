@@ -406,7 +406,11 @@ target_link_libraries(smart_aegis_core PUBLIC ${PLATFORM_LIBS})
 add_executable(coordinator src/apps/coordinator_main.cpp)
 target_link_libraries(coordinator PRIVATE smart_aegis_core)
 
-# [Target 2] Roadside Intersection Node
+# [Target 2a] Standalone Traffic Signal Node (Layered Architecture)
+add_executable(traffic_node traffic_node/main.cpp)
+target_link_libraries(traffic_node PRIVATE smart_aegis_core)
+
+# [Target 2b] Roadside Intersection Node Daemon (Multi-Intersection Service)
 add_executable(intersection src/apps/intersection_main.cpp)
 target_link_libraries(intersection PRIVATE smart_aegis_core)
 
@@ -418,7 +422,27 @@ target_link_libraries(simulation PRIVATE smart_aegis_core)
 add_executable(validator src/apps/validator_main.cpp)
 target_link_libraries(validator PRIVATE smart_aegis_core)
 
-# [Target 5] Qt6 Desktop GUI Simulator
+# [Target 5] Operations & Command Center Console
+add_executable(command_center src/apps/command_center_main.cpp)
+target_link_libraries(command_center PRIVATE smart_aegis_core)
+
+# [Target 6] City-Scale Digital Twin Operations Center
+add_executable(digital_twin src/apps/digital_twin_main.cpp)
+target_link_libraries(digital_twin PRIVATE smart_aegis_core)
+
+# [Target 7] Hackathon Hardware Demonstration Runner (5 Missions)
+add_executable(hardware_demo src/apps/hardware_demo_main.cpp)
+target_link_libraries(hardware_demo PRIVATE smart_aegis_core)
+
+# [Target 8] In-Vehicle Ambulance Driver Dashboard & Telematics Console
+add_executable(driver_dashboard src/apps/driver_dashboard_main.cpp)
+target_link_libraries(driver_dashboard PRIVATE smart_aegis_core)
+
+# [Target 9] Clinical Priority Scheduler & IRSA Engine Executable
+add_executable(priority_scheduler src/apps/priority_scheduler_main.cpp)
+target_link_libraries(priority_scheduler PRIVATE smart_aegis_core)
+
+# [Target 10] Qt6 / Headless Desktop GUI Simulator
 if(Qt6_FOUND)
     add_executable(gui src/apps/gui_main.cpp)
     target_compile_definitions(gui PRIVATE HAS_QT6=1)
@@ -428,9 +452,9 @@ else()
     target_link_libraries(gui PRIVATE smart_aegis_core)
 endif()
 
-# [Target 6] Hardware Deployment Target (Custom Target)
+# Hardware Deployment Target (Custom Target)
 add_custom_target(hardware
-    DEPENDS coordinator intersection validator
+    DEPENDS coordinator traffic_node intersection validator hardware_demo driver_dashboard priority_scheduler
     COMMENT "SMART AEGIS - QNX Physical Hardware targets compiled."
 )
 
@@ -448,7 +472,7 @@ add_test(NAME ComprehensiveSystemTest COMMAND test_smart_aegis_system)
 # -----------------------------------------------------------------------------
 include(GNUInstallDirs)
 
-install(TARGETS coordinator intersection simulation validator smart_aegis_core
+install(TARGETS coordinator traffic_node intersection simulation validator command_center digital_twin hardware_demo driver_dashboard priority_scheduler smart_aegis_core
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}

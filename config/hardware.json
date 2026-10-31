@@ -80,8 +80,8 @@
     }
   },
   "relayConfiguration": {
-    "moduleType": "4_CHANNEL_OPTOCOUPLER_RELAY",
-    "activeLow": true,
+    "moduleType": "DIRECT_GPIO_LED_MODULE",
+    "activeLow": false,
     "maxSwitchingFrequencyHz": 10,
     "channels": [
       {
