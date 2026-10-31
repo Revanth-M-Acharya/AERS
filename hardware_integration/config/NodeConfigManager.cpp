@@ -53,18 +53,17 @@ ClusterNodeProfile NodeConfigManager::CreateDefaultTrafficNodeProfile(const std:
     p.ackTimeoutMs = 3000;
     p.watchdogTimeoutMs = 5000;
 
-    // Standard BCM2711 GPIO assignments
-    p.pinAssignments[StandardSignals::ROAD_A_RED] = {StandardSignals::ROAD_A_RED, 17, PinDirection::OUTPUT, ActivePolarity::ACTIVE_LOW, "Relay Ch 1"};
-    p.pinAssignments[StandardSignals::ROAD_A_YELLOW] = {StandardSignals::ROAD_A_YELLOW, 27, PinDirection::OUTPUT, ActivePolarity::ACTIVE_LOW, "Relay Ch 2"};
-    p.pinAssignments[StandardSignals::ROAD_A_GREEN] = {StandardSignals::ROAD_A_GREEN, 22, PinDirection::OUTPUT, ActivePolarity::ACTIVE_LOW, "Relay Ch 3"};
-    p.pinAssignments[StandardSignals::ROAD_B_RED] = {StandardSignals::ROAD_B_RED, 23, PinDirection::OUTPUT, ActivePolarity::ACTIVE_HIGH, "Road B Red"};
-    p.pinAssignments[StandardSignals::ROAD_B_YELLOW] = {StandardSignals::ROAD_B_YELLOW, 24, PinDirection::OUTPUT, ActivePolarity::ACTIVE_HIGH, "Road B Yellow"};
-    p.pinAssignments[StandardSignals::ROAD_B_GREEN] = {StandardSignals::ROAD_B_GREEN, 25, PinDirection::OUTPUT, ActivePolarity::ACTIVE_LOW, "Relay Ch 4"};
-    p.pinAssignments[StandardSignals::PEDESTRIAN_WALK] = {StandardSignals::PEDESTRIAN_WALK, 5, PinDirection::OUTPUT, ActivePolarity::ACTIVE_HIGH, "Pedestrian Walk"};
-    p.pinAssignments[StandardSignals::EMERGENCY_STROBE] = {StandardSignals::EMERGENCY_STROBE, 26, PinDirection::OUTPUT, ActivePolarity::ACTIVE_HIGH, "Strobe LED"};
-    p.pinAssignments[StandardSignals::ACOUSTIC_BUZZER] = {StandardSignals::ACOUSTIC_BUZZER, 6, PinDirection::OUTPUT, ActivePolarity::ACTIVE_HIGH, "Acoustic Buzzer"};
-    p.pinAssignments[StandardSignals::APPROACH_IR_SENSOR] = {StandardSignals::APPROACH_IR_SENSOR, 12, PinDirection::INPUT, ActivePolarity::ACTIVE_LOW, "Approach IR Sensor"};
-    p.pinAssignments[StandardSignals::DEPARTURE_IR_SENSOR] = {StandardSignals::DEPARTURE_IR_SENSOR, 13, PinDirection::INPUT, ActivePolarity::ACTIVE_LOW, "Departure IR Sensor"};
+    // Prototype Hardware GPIO Assignments
+    if (nodeId == "INT_3" || nodeId == "INT3" || nodeId == "RPI_INT3" || nodeId == "NODE_C") {
+        // Intersection 3: Due to hardware shortage, only ONE LED (Blue LED on BCM GPIO 6)
+        p.pinAssignments[StandardSignals::LED_BLUE] = {StandardSignals::LED_BLUE, 6, PinDirection::OUTPUT, ActivePolarity::ACTIVE_HIGH, "Corridor Blue LED"};
+        p.pinAssignments[StandardSignals::APPROACH_IR_SENSOR] = {StandardSignals::APPROACH_IR_SENSOR, 12, PinDirection::INPUT, ActivePolarity::ACTIVE_LOW, "Approach IR Sensor"};
+    } else {
+        // Intersection 1 & 2: Red LED (GPIO 5) and Blue LED (GPIO 6)
+        p.pinAssignments[StandardSignals::LED_RED] = {StandardSignals::LED_RED, 5, PinDirection::OUTPUT, ActivePolarity::ACTIVE_HIGH, "Stop Red LED"};
+        p.pinAssignments[StandardSignals::LED_BLUE] = {StandardSignals::LED_BLUE, 6, PinDirection::OUTPUT, ActivePolarity::ACTIVE_HIGH, "Corridor Blue LED"};
+        p.pinAssignments[StandardSignals::APPROACH_IR_SENSOR] = {StandardSignals::APPROACH_IR_SENSOR, 12, PinDirection::INPUT, ActivePolarity::ACTIVE_LOW, "Approach IR Sensor"};
+    }
 
     return p;
 }

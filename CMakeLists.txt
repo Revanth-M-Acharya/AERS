@@ -1,93 +1,246 @@
 cmake_minimum_required(VERSION 3.20)
 project(SMART_AEGIS 
-    VERSION 1.0.0 
-    DESCRIPTION "SMART AEGIS - Distributed Ambulance Emergency Response System"
+    VERSION 2.5.0 
+    DESCRIPTION "SMART AEGIS - Distributed Smart Ambulance Emergency Routing & Traffic Corridor Preemption System"
     LANGUAGES C CXX
 )
 
-# ==============================================================================
-# 1. C++ Standard & Global Compilation Flags
-# ==============================================================================
+# -----------------------------------------------------------------------------
+# 1. C++ Standard & Global Target Directories
+# -----------------------------------------------------------------------------
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-# Build Type Default (Supports Debug, Release, Profile)
 if(NOT CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE "Debug" CACHE STRING "Choose Debug, Release, or Profile build" FORCE)
+    set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Build type: Debug, Release, RelWithDebInfo" FORCE)
 endif()
 
-message(STATUS "SMART AEGIS - Build Configuration: ${CMAKE_BUILD_TYPE}")
-message(STATUS "Target System: ${CMAKE_SYSTEM_NAME}")
+# Output binaries in build/bin and libraries in build/lib
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
 
-# ==============================================================================
-# 2. Strict Compiler Diagnostic Options
-# ==============================================================================
-if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+message(STATUS "SMART AEGIS - Build Type: ${CMAKE_BUILD_TYPE}")
+message(STATUS "SMART AEGIS - Target System: ${CMAKE_SYSTEM_NAME}")
+message(STATUS "SMART AEGIS - Output Directory: ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
+
+# -----------------------------------------------------------------------------
+# 2. Compiler Options & Platform Detection
+# -----------------------------------------------------------------------------
+if(CMAKE_SYSTEM_NAME STREQUAL "QNX" OR DEFINED QNX_TARGET_ARCH)
+    set(AEGIS_PLATFORM_QNX TRUE)
+    add_compile_definitions(AEGIS_TARGET_QNX=1 __QNX__=1 __QNXNTO__=1 _QNX_SOURCE=1)
+    message(STATUS "SMART AEGIS - Configuring for QNX Neutrino RTOS 8.0 target")
+else()
+    set(AEGIS_PLATFORM_QNX FALSE)
+    add_compile_definitions(AEGIS_TARGET_POSIX=1)
+    message(STATUS "SMART AEGIS - Configuring for Desktop Host (macOS/Linux/Windows)")
+endif()
+
+if(MSVC)
+    add_compile_options(/W4 /permissive- /EHsc)
+elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|AppleClang")
     add_compile_options(
         -Wall
         -Wextra
-        -Wpedantic
         -Wconversion
+        -Wsign-conversion
         -Wshadow
         -Wnon-virtual-dtor
-        -Wold-style-cast
-        -Wcast-align
-        -Wunused
-        -Woverloaded-virtual
+        -Wpedantic
     )
-    if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-        add_compile_options(-g3 -O0 -DDEBUG -DAEGIS_DEBUG)
-    elseif(CMAKE_BUILD_TYPE STREQUAL "Profile")
-        add_compile_options(-O2 -g3 -DPROFILE -DAEGIS_PROFILE)
-    else()
-        add_compile_options(-O3 -DNDEBUG)
-    endif()
-elseif(CMAKE_CXX_COMPILER_ID MATCHES "QCC")
-    # QNX Neutrino Compiler Options (SDP 8.0 / aarch64le default)
-    if(NOT DEFINED QCC_TARGET_SPEC)
-        set(QCC_TARGET_SPEC "gcc_ntoaarch64le")
-    endif()
-    add_compile_options(-V${QCC_TARGET_SPEC}_cpp -Y_gpp -lang-c++ -w8)
-    if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-        add_compile_options(-g -O0 -DAEGIS_DEBUG)
-    elseif(CMAKE_BUILD_TYPE STREQUAL "Profile")
-        add_compile_options(-O2 -g -p -DPROFILE -DAEGIS_PROFILE)
-    else()
-        add_compile_options(-O3 -DNDEBUG)
-    endif()
 endif()
 
-# ==============================================================================
-# 3. Platform & Target Options
-# ==============================================================================
-option(BUILD_TESTS "Build automated test suite" ON)
-option(BUILD_SIMULATORS "Build simulation tools" ON)
-option(ENABLE_QNX_TARGET "Target QNX Neutrino RTOS environment" OFF)
+# -----------------------------------------------------------------------------
+# 3. Dependencies
+# -----------------------------------------------------------------------------
+find_package(Threads REQUIRED)
 
-if(ENABLE_QNX_TARGET OR CMAKE_SYSTEM_NAME STREQUAL "QNX")
-    add_compile_definitions(AEGIS_TARGET_QNX=1 __QNX__=1 __QNXNTO__=1 _QNX_SOURCE=1)
-    message(STATUS "Configured for QNX Neutrino RTOS target environment")
+set(PLATFORM_LIBS Threads::Threads)
+if(WIN32)
+    list(APPEND PLATFORM_LIBS ws2_32)
+elseif(AEGIS_PLATFORM_QNX)
+    list(APPEND PLATFORM_LIBS socket)
+endif()
+
+# Optional Qt6 Desktop GUI Support
+find_package(Qt6 COMPONENTS Core Widgets Gui QUIET)
+if(Qt6_FOUND)
+    message(STATUS "SMART AEGIS - Qt6 detected. Enabling Qt desktop simulator target 'gui'.")
+    set(CMAKE_AUTOMOC ON)
 else()
-    add_compile_definitions(AEGIS_TARGET_POSIX=1)
-    message(STATUS "Configured for POSIX / Linux / macOS host environment")
+    message(STATUS "SMART AEGIS - Qt6 not detected. Target 'gui' will build in headless console mode.")
 endif()
 
-# ==============================================================================
-# 4. Global Include Directories
-# ==============================================================================
-include_directories(
-    ${CMAKE_CURRENT_SOURCE_DIR}/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/src
-    ${CMAKE_CURRENT_SOURCE_DIR}/network
-    ${CMAKE_CURRENT_SOURCE_DIR}
-)
-
-# ==============================================================================
-# 5. Core Source Tree Subdirectories & Coordinator TCP Server
-# ==============================================================================
-set(COORD_P2_SRCS
+# -----------------------------------------------------------------------------
+# 4. Source Inventory (smart_aegis_core)
+# -----------------------------------------------------------------------------
+set(CORE_SOURCES
+    src/common/geo_utils.cpp
+    src/common/time_utils.cpp
+    src/common/uuid_utils.cpp
+    src/common/error.cpp
+    src/common/event.cpp
+    src/common/timer.cpp
+    src/common/json_helper.cpp
+    src/common/validator.cpp
+    src/config/config_manager.cpp
+    src/config/NodeConfig.cpp
+    src/config/IntersectionsConfig.cpp
+    src/gpio/SimulationGpioController.cpp
+    src/gpio/QnxHardwareGpioController.cpp
+    src/protocol/AegisProtocol.cpp
+    src/intersection_service/IntersectionService.cpp
+    src/coordinator_client/CoordinatorClientManager.cpp
+    src/logger/logger.cpp
+    src/logger/EventLogger.cpp
+    src/logger/SimulationRecorder.cpp
+    src/safety/watchdog.cpp
+    src/safety/safety_monitor.cpp
+    src/network/retry_policy.cpp
+    src/network/serializer.cpp
+    src/network/message_router.cpp
+    src/network/authentication_manager.cpp
+    src/network/connection_manager.cpp
+    src/network/socket_client.cpp
+    src/network/socket_server.cpp
+    src/network/heartbeat_manager.cpp
+    src/network/simulation_transport.cpp
+    src/network/mosquitto_transport.cpp
+    src/network/mqtt_client.cpp
+    src/network/network_manager.cpp
+    src/communication/Message.cpp
+    src/communication/SocketServer.cpp
+    src/communication/SocketClient.cpp
+    src/priority_scheduler/priority_scheduler.cpp
+    src/route_planner/route_planner.cpp
+    src/coordinator/emergency_call_handler.cpp
+    src/coordinator/incident_manager.cpp
+    src/coordinator/ambulance_registry.cpp
+    src/coordinator/fleet_manager.cpp
+    src/coordinator/dispatch_engine.cpp
+    src/coordinator/dynamic_green_corridor.cpp
+    src/coordinator/coordinator.cpp
+    src/coordinator/EventQueue.cpp
+    src/coordinator/IntersectionRegistry.cpp
+    src/coordinator/CoordinatorManager.cpp
+    src/coordinator/IntersectionState.cpp
+    src/coordinator/GreenCorridor.cpp
+    src/coordinator/TrafficCommandManager.cpp
+    src/coordinator/NodeRegistrationManager.cpp
+    src/ambulance/gps_tracker.cpp
+    src/ambulance/vitals_monitor.cpp
+    src/ambulance/v2v_module.cpp
+    src/ambulance/ambulance_node.cpp
+    src/ambulance/ambulance_mission_simulator.cpp
+    src/ambulance/AmbulanceProfile.cpp
+    src/ambulance/AmbulanceRegistry.cpp
+    src/traffic_controller/gpio_interface.cpp
+    src/traffic_controller/signal_state_machine.cpp
+    src/traffic_controller/preemption_manager.cpp
+    src/traffic_controller/recovery_manager.cpp
+    src/traffic_controller/traffic_controller.cpp
+    src/traffic_controller/traffic_signal_node.cpp
+    src/hospital_dashboard/hospital_dashboard_backend.cpp
+    src/traffic_dashboard/traffic_dashboard_backend.cpp
+    src/intersection/SignalController.cpp
+    src/intersection/HeartbeatManager.cpp
+    src/intersection/IntersectionNode.cpp
+    src/system/SystemManager.cpp
+    src/medical/PatientProfile.cpp
+    src/medical/PriorityEngine.cpp
+    src/medical/MedicalDatabase.cpp
+    src/scheduler/ConflictDetector.cpp
+    src/scheduler/PriorityScheduler.cpp
+    src/scheduler/MissionManager.cpp
+    src/scheduler/ConflictDetectionEngine.cpp
+    src/scheduler/IntelligentPriorityScheduler.cpp
+    src/scheduler/ConflictResolutionManager.cpp
+    src/scheduler/ManualOverrideManager.cpp
+    src/scheduler/AmbulanceAwarenessService.cpp
+    src/scheduler/MultiAmbulanceSimulation.cpp
+    src/control/ManualOverride.cpp
+    src/control/EmergencyOperatorConsole.cpp
+    src/traffic_signal/TrafficSignalNode.cpp
+    src/green_corridor/EmergencyCorridorPlanner.cpp
+    src/green_wave/GreenWaveCoordinator.cpp
+    src/orchestrator/EmergencyOrchestrator.cpp
+    src/replanning/DynamicRouteReplanner.cpp
+    src/multi_corridor/MultiCorridorCoordinator.cpp
+    src/distributed_signal/DistributedSignalSynchronizer.cpp
+    src/predictive_traffic/PredictiveTrafficEngine.cpp
+    src/fleet_management/FleetManagementEngine.cpp
+    src/hospital_selection/HospitalSelectionEngine.cpp
+    src/hospital_management/HospitalResourceEngine.cpp
+    src/mission_execution/MissionExecutionEngine.cpp
+    src/incident_command/IncidentCommandEngine.cpp
+    src/traffic_network_orchestrator/TrafficNetworkOrchestrator.cpp
+    src/distributed_consensus/DistributedConsensusEngine.cpp
+    src/rpi_cluster/RaspberryPiClusterManager.cpp
+    src/system_diagnostics/SystemDiagnosticsEngine.cpp
+    src/hardware_abstraction/HardwareAbstractionLayer.cpp
+    src/qnx_driver_framework/QNXDeviceDriverFramework.cpp
+    src/bsp/RaspberryPi4BSP.cpp
+    src/runtime/RuntimeEventFlow.cpp
+    src/runtime/CoordinatorRuntime.cpp
+    src/runtime/TrafficNodeRuntime.cpp
+    src/runtime/DistributedRuntimeOrchestrator.cpp
+    src/deployment/NodeConfiguration.cpp
+    src/deployment/ConfigurationLoader.cpp
+    src/deployment/DeploymentValidator.cpp
+    src/deployment/RuntimeConfiguration.cpp
+    src/deployment/NetworkDiscovery.cpp
+    src/deployment/BootManager.cpp
+    src/deployment/StartupManager.cpp
+    src/deployment/DeploymentGpioDriver.cpp
+    src/deployment/DeploymentLogger.cpp
+    src/deployment/HeartbeatSupervisor.cpp
+    src/deployment/GracefulShutdownManager.cpp
+    src/deployment/DeploymentManager.cpp
+    src/deployment/ClusterLauncher.cpp
+    src/simulator/CityClock.cpp
+    src/simulator/RoadGraph.cpp
+    src/simulator/VirtualVehicle.cpp
+    src/simulator/VirtualAmbulance.cpp
+    src/simulator/VirtualIntersection.cpp
+    src/simulator/VirtualHospital.cpp
+    src/simulator/EmergencyGenerator.cpp
+    src/simulator/CityModel.cpp
+    src/hardware/HardwareConfiguration.cpp
+    src/hardware/HardwareEventLogger.cpp
+    src/hardware/RelayController.cpp
+    src/hardware/TrafficLightController.cpp
+    src/hardware/IntersectionHardware.cpp
+    src/hardware/WirelessNodeManager.cpp
+    src/hardware/HardwareHealthMonitor.cpp
+    src/hardware/HardwareDiagnostics.cpp
+    src/hardware/HardwareController.cpp
+    src/hardware/OpticalSensorFilter.cpp
+    src/hardware/GpioReservationManager.cpp
+    src/hardware/HardwareWatchdog.cpp
+    src/hardware/WirelessQualityMonitor.cpp
+    src/hardware/BootManager.cpp
+    src/hardware/ShutdownManager.cpp
+    src/corridor/CorridorDeadlineMonitor.cpp
+    src/corridor/EmergencyTimeoutManager.cpp
+    src/corridor/DynamicCorridorReleaseManager.cpp
+    src/corridor/RouteProgressTracker.cpp
+    src/corridor/SignalTimelineGenerator.cpp
+    src/cluster/ClusterHealthMonitor.cpp
+    src/recovery/FaultRecoveryManager.cpp
+    src/qnx/QnxDevctl.cpp
+    src/qnx/QnxMessagePassing.cpp
+    src/qnx/QnxPulseManager.cpp
+    src/qnx/QnxTimerService.cpp
+    src/qnx/QnxThreadScheduler.cpp
+    src/qnx/QnxInterruptManager.cpp
+    src/qnx/QnxResourceManager.cpp
+    src/qnx/QnxDiagnostics.cpp
+    network/message.cpp
+    network/tcp_server.cpp
+    network/tcp_client.cpp
     common/utils/TimeUtils.cpp
     common/utils/ThreadUtils.cpp
     common/protocol/Packet.cpp
@@ -96,17 +249,6 @@ set(COORD_P2_SRCS
     coordinator/logger/CoordinatorLogger.cpp
     coordinator/server/ClientSession.cpp
     coordinator/server/CoordinatorServer.cpp
-)
-add_library(coordinator_server_lib STATIC ${COORD_P2_SRCS})
-target_include_directories(coordinator_server_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-
-add_executable(coordinator_tcp_server coordinator/server/main.cpp)
-target_link_libraries(coordinator_tcp_server PRIVATE coordinator_server_lib pthread)
-
-# ==============================================================================
-# Phase 3 Traffic Signal Node Client
-# ==============================================================================
-set(TRAFFIC_NODE_P3_SRCS
     traffic_node/config/TrafficNodeConfig.cpp
     traffic_node/logger/TrafficLogger.cpp
     traffic_node/gpio/MockGpioDriver.cpp
@@ -120,18 +262,6 @@ set(TRAFFIC_NODE_P3_SRCS
     traffic_node/client/HeartbeatManager.cpp
     traffic_node/client/TrafficClient.cpp
     traffic_node/protocol/TrafficCommandDispatcher.cpp
-)
-add_library(traffic_node_client_lib STATIC ${TRAFFIC_NODE_P3_SRCS})
-target_link_libraries(traffic_node_client_lib PUBLIC coordinator_server_lib pthread)
-target_include_directories(traffic_node_client_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-
-add_executable(traffic_signal_node traffic_node/main.cpp)
-target_link_libraries(traffic_signal_node PRIVATE traffic_node_client_lib pthread)
-
-# ==============================================================================
-# Phase 4 Coordinator Intelligence Engine
-# ==============================================================================
-set(COORD_INTEL_SRCS
     coordinator/intelligence/graph/RoadGraph.cpp
     coordinator/intelligence/planner/DijkstraRoutePlanner.cpp
     coordinator/intelligence/eta/ContinuousETAEngine.cpp
@@ -140,15 +270,6 @@ set(COORD_INTEL_SRCS
     coordinator/intelligence/execution/ExecutionPlanGenerator.cpp
     coordinator/intelligence/safety/SafetyPolicyEngine.cpp
     coordinator/intelligence/config/IntelligenceConfig.cpp
-)
-add_library(coordinator_intel_lib STATIC ${COORD_INTEL_SRCS})
-target_link_libraries(coordinator_intel_lib PUBLIC coordinator_server_lib pthread)
-target_include_directories(coordinator_intel_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-
-# ==============================================================================
-# Phase 5 Coordinator Orchestration & Distributed Runtime
-# ==============================================================================
-set(COORD_ORCHESTRATION_SRCS
     coordinator/orchestration/state/CoordinatorStateManager.cpp
     coordinator/orchestration/event_bus/EventBus.cpp
     coordinator/orchestration/session/EmergencySessionManager.cpp
@@ -159,15 +280,6 @@ set(COORD_ORCHESTRATION_SRCS
     coordinator/orchestration/monitor/ExecutionMonitor.cpp
     coordinator/orchestration/recovery/RecoveryManager.cpp
     coordinator/orchestration/config/OrchestrationConfig.cpp
-)
-add_library(coordinator_orchestration_lib STATIC ${COORD_ORCHESTRATION_SRCS})
-target_link_libraries(coordinator_orchestration_lib PUBLIC coordinator_intel_lib coordinator_server_lib pthread)
-target_include_directories(coordinator_orchestration_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-
-# ==============================================================================
-# Phase 6 Emergency Control Center & Hospital Coordination
-# ==============================================================================
-set(COORD_PHASE6_SRCS
     coordinator/control_center/EmergencyValidator.cpp
     coordinator/control_center/EmergencyPriorityEngine.cpp
     coordinator/control_center/IncidentManager.cpp
@@ -180,15 +292,6 @@ set(COORD_PHASE6_SRCS
     coordinator/hospital/HospitalNotificationManager.cpp
     coordinator/hospital/DoctorPreparationManager.cpp
     coordinator/hospital/PatientHandoverManager.cpp
-)
-add_library(coordinator_phase6_lib STATIC ${COORD_PHASE6_SRCS})
-target_link_libraries(coordinator_phase6_lib PUBLIC coordinator_orchestration_lib coordinator_intel_lib coordinator_server_lib pthread)
-target_include_directories(coordinator_phase6_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-
-# ==============================================================================
-# Phase 7 Intelligent Road Situation Awareness (IRSA)
-# ==============================================================================
-set(COORD_PHASE7_SRCS
     coordinator/perception/RoadConditionEvent.cpp
     coordinator/perception/CameraRegistry.cpp
     coordinator/perception/CameraFeedManager.cpp
@@ -210,44 +313,26 @@ set(COORD_PHASE7_SRCS
     coordinator/perception/analytics/RoadSuitabilityCalculator.cpp
     coordinator/perception/analytics/HistoricalTrafficAnalytics.cpp
     coordinator/perception/digital_twin/PerceptionDigitalTwinBridge.cpp
-)
-add_library(coordinator_phase7_lib STATIC ${COORD_PHASE7_SRCS})
-target_link_libraries(coordinator_phase7_lib PUBLIC coordinator_phase6_lib coordinator_orchestration_lib coordinator_intel_lib coordinator_server_lib pthread)
-target_include_directories(coordinator_phase7_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-
-# ==============================================================================
-# Phase 8 Integrated Digital Twin, Operations Center & System Simulation
-# ==============================================================================
-set(COORD_PHASE8_SRCS
     digital_twin/CityModel.cpp
-    digital_twin/DigitalTwinEngine.cpp
     digital_twin/SimulationClock.cpp
-    digital_twin/SimulationScenarioManager.cpp
-    digital_twin/MissionReplayEngine.cpp
     digital_twin/TelemetryCollector.cpp
-    digital_twin/DashboardController.cpp
     digital_twin/DashboardEventBridge.cpp
+    digital_twin/MissionTimeline.cpp
+    digital_twin/MissionReplayEngine.cpp
+    digital_twin/ScenarioPlaybackController.cpp
+    digital_twin/SimulationScenarioManager.cpp
     digital_twin/visualizers/AmbulanceVisualizer.cpp
     digital_twin/visualizers/TrafficSignalVisualizer.cpp
     digital_twin/visualizers/CorridorVisualizer.cpp
     digital_twin/visualizers/CameraVisualizer.cpp
     digital_twin/visualizers/HospitalVisualizer.cpp
     digital_twin/visualizers/CoordinatorVisualizer.cpp
-    digital_twin/MissionTimeline.cpp
     digital_twin/PerformanceMonitor.cpp
     digital_twin/StatisticsEngine.cpp
     digital_twin/BenchmarkRecorder.cpp
-    digital_twin/ScenarioPlaybackController.cpp
     digital_twin/ReportExporter.cpp
-)
-add_library(coordinator_phase8_lib STATIC ${COORD_PHASE8_SRCS})
-target_link_libraries(coordinator_phase8_lib PUBLIC coordinator_phase7_lib coordinator_phase6_lib coordinator_orchestration_lib coordinator_intel_lib coordinator_server_lib pthread)
-target_include_directories(coordinator_phase8_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-
-# ==============================================================================
-# Phase 9 Production Readiness, Reliability, Safety & Deployment
-# ==============================================================================
-set(COORD_PHASE9_SRCS
+    digital_twin/DashboardController.cpp
+    digital_twin/DigitalTwinEngine.cpp
     production/health/HealthSupervisor.cpp
     production/health/WatchdogManager.cpp
     production/health/RuntimeDiagnostics.cpp
@@ -268,25 +353,116 @@ set(COORD_PHASE9_SRCS
     production/fault_injection/FaultInjector.cpp
     production/benchmark/ProductionBenchmarkReporter.cpp
     production/ProductionEngine.cpp
+    hardware_integration/gpio/SymbolicGpioHAL.cpp
+    hardware_integration/led/PrototypeLedDriver.cpp
+    hardware_integration/relay/ProductionRelayDriver.cpp
+    hardware_integration/sensor/IRSensorDriver.cpp
+    hardware_integration/config/NodeConfigManager.cpp
+    hardware_integration/commissioning/CommissioningManager.cpp
+    hardware_integration/cluster/ClusterSupervisor.cpp
+    hardware_integration/validation/DeploymentValidator.cpp
+    hardware_integration/logging/CentralizedDeploymentLogger.cpp
+    hardware_integration/demo/BuzzerController.cpp
+    hardware_integration/demo/EmergencySwitchDriver.cpp
+    hardware_integration/demo/PoliceOverrideSwitchDriver.cpp
+    hardware_integration/demo/OledV2XDisplay.cpp
+    hardware_integration/demo/Intersection2PriorityDemonstrator.cpp
+    hardware_integration/demo/PoliceReplanningCoordinator.cpp
+    hardware_integration/demo/HardwareDemoOrchestrator.cpp
+    command_center/fleet/EmsFleetManager.cpp
+    command_center/tracking/LiveAmbulanceTracker.cpp
+    command_center/mission/MissionDatabase.cpp
+    command_center/hospital/HospitalOperationsDashboard.cpp
+    command_center/traffic/TrafficOperationsDashboard.cpp
+    command_center/cluster/ClusterMonitor.cpp
+    command_center/health/SystemHealthMonitor.cpp
+    command_center/analytics/RealTimeAnalyticsEngine.cpp
+    command_center/replay/MissionReplayController.cpp
+    command_center/dashboard/CommandCenterConsole.cpp
+    command_center/bridge/CommandCenterEventBridge.cpp
+    command_center/CommandCenterFacade.cpp
+    src/simulation/SimulationRunner.cpp
 )
-add_library(coordinator_phase9_lib STATIC ${COORD_PHASE9_SRCS})
-target_link_libraries(coordinator_phase9_lib PUBLIC coordinator_phase8_lib coordinator_phase7_lib coordinator_phase6_lib coordinator_orchestration_lib coordinator_intel_lib coordinator_server_lib pthread)
-target_include_directories(coordinator_phase9_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
-add_subdirectory(network)
-add_subdirectory(src)
+# -----------------------------------------------------------------------------
+# 5. Core Library Target: smart_aegis_core
+# -----------------------------------------------------------------------------
+add_library(smart_aegis_core STATIC ${CORE_SOURCES})
 
-# ==============================================================================
-# 6. Simulator Tools
-# ==============================================================================
-if(BUILD_SIMULATORS)
-    add_subdirectory(tools/simulator)
+target_include_directories(smart_aegis_core PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}/network
+    ${CMAKE_CURRENT_SOURCE_DIR}
+)
+
+target_link_libraries(smart_aegis_core PUBLIC ${PLATFORM_LIBS})
+
+# -----------------------------------------------------------------------------
+# 6. Executable Targets
+# -----------------------------------------------------------------------------
+
+# [Target 1] Central Coordinator Daemon
+add_executable(coordinator src/apps/coordinator_main.cpp)
+target_link_libraries(coordinator PRIVATE smart_aegis_core)
+
+# [Target 2] Roadside Intersection Node
+add_executable(intersection src/apps/intersection_main.cpp)
+target_link_libraries(intersection PRIVATE smart_aegis_core)
+
+# [Target 3] Desktop Simulator (Console Dashboard Runner)
+add_executable(simulation src/apps/simulation_main.cpp)
+target_link_libraries(simulation PRIVATE smart_aegis_core)
+
+# [Target 4] Deployment & Health Validator
+add_executable(validator src/apps/validator_main.cpp)
+target_link_libraries(validator PRIVATE smart_aegis_core)
+
+# [Target 5] Qt6 Desktop GUI Simulator
+if(Qt6_FOUND)
+    add_executable(gui src/apps/gui_main.cpp)
+    target_compile_definitions(gui PRIVATE HAS_QT6=1)
+    target_link_libraries(gui PRIVATE smart_aegis_core Qt6::Core Qt6::Widgets Qt6::Gui)
+else()
+    add_executable(gui src/apps/gui_main.cpp)
+    target_link_libraries(gui PRIVATE smart_aegis_core)
 endif()
 
-# ==============================================================================
-# 7. Automated Test Suites
-# ==============================================================================
-if(BUILD_TESTS)
-    enable_testing()
-    add_subdirectory(tests)
+# [Target 6] Hardware Deployment Target (Custom Target)
+add_custom_target(hardware
+    DEPENDS coordinator intersection validator
+    COMMENT "SMART AEGIS - QNX Physical Hardware targets compiled."
+)
+
+# -----------------------------------------------------------------------------
+# 7. Automated Verification Test Suite
+# -----------------------------------------------------------------------------
+enable_testing()
+
+add_executable(test_smart_aegis_system tests/unit/test_smart_aegis_system.cpp)
+target_link_libraries(test_smart_aegis_system PRIVATE smart_aegis_core)
+add_test(NAME ComprehensiveSystemTest COMMAND test_smart_aegis_system)
+
+# -----------------------------------------------------------------------------
+# 8. Installation Rules
+# -----------------------------------------------------------------------------
+include(GNUInstallDirs)
+
+install(TARGETS coordinator intersection simulation validator smart_aegis_core
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+)
+
+if(TARGET gui)
+    install(TARGETS gui RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 endif()
+
+install(DIRECTORY config/ DESTINATION etc/aegis/config)
+install(DIRECTORY scripts/ 
+    DESTINATION share/aegis/scripts 
+    FILE_PERMISSIONS 
+        OWNER_READ OWNER_WRITE OWNER_EXECUTE 
+        GROUP_READ GROUP_EXECUTE 
+        WORLD_READ WORLD_EXECUTE
+)

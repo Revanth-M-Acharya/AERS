@@ -110,22 +110,22 @@ bool HardwareDemoOrchestrator::Initialize() {
     // Each node has its own HAL to simulate the 4 separate Raspberry Pi nodes
     auto halInt1 = std::make_shared<SymbolicGpioHAL>();
     halInt1->Initialize();
-    relayInt1_ = std::make_shared<ProductionRelayDriver>(halInt1);
+    relayInt1_ = std::make_shared<ProductionRelayDriver>(halInt1, "INT_1");
     relayInt1_->Initialize();
 
     auto halInt2 = std::make_shared<SymbolicGpioHAL>();
     halInt2->Initialize();
-    relayInt2_ = std::make_shared<ProductionRelayDriver>(halInt2);
+    relayInt2_ = std::make_shared<ProductionRelayDriver>(halInt2, "INT_2");
     relayInt2_->Initialize();
 
     auto halInt3 = std::make_shared<SymbolicGpioHAL>();
     halInt3->Initialize();
-    relayInt3_ = std::make_shared<ProductionRelayDriver>(halInt3);
+    relayInt3_ = std::make_shared<ProductionRelayDriver>(halInt3, "INT_3");
     relayInt3_->Initialize();
 
     auto halBypass = std::make_shared<SymbolicGpioHAL>();
     halBypass->Initialize();
-    relayBypass_ = std::make_shared<ProductionRelayDriver>(halBypass);
+    relayBypass_ = std::make_shared<ProductionRelayDriver>(halBypass, "INT_BYPASS");
     relayBypass_->Initialize();
 
     policeReplanner_->RegisterNodeRelayDriver("INT_1", relayInt1_);

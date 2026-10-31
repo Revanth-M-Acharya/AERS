@@ -290,6 +290,7 @@ void TestDeploymentValidator() {
 
     DeploymentValidator validator(hal, relay, ir, config, supervisor, eventBus);
     auto rep = validator.ExecuteFullValidation();
+    std::cout << DeploymentValidator::FormatReportAscii(rep) << std::endl;
 
     assert(rep.overallPassed);
     assert(rep.passedVectors == 7);

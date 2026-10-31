@@ -1,11 +1,11 @@
 # SMART AEGIS (AERS) — Phase 15 Engineering Manual
-## Physical Hardware Assembly, Direct GPIO Traffic Light LED Module Mapping, Raspberry Pi Deployment & Commissioning Handbook
+## Physical Hardware Assembly, Direct GPIO Prototype LED Mapping, Raspberry Pi Deployment & Commissioning Handbook
 
 ```
 ===================================================================================================
   PROJECT:         SMART AEGIS (Automated Emergency Routing System)
   DOCUMENT ID:     AEGIS-MAN-HW-2026-PHASE15
-  VERSION:         2.0.0
+  VERSION:         2.5.0
   DATE:            2026-10-31
   TARGET RTOS:     QNX Neutrino RTOS 8.0 Starter Kit (aarch64le)
   TARGET HARDWARE: 4x Raspberry Pi 4 Model B (4 GB RAM, Quad Cortex-A72 @ 1.5 GHz)
@@ -24,7 +24,7 @@
 4. [Complete GPIO Mapping Tables](#4-complete-gpio-mapping-tables)
 5. [Full Wiring Diagrams](#5-full-wiring-diagrams)
 6. [Power Distribution](#6-power-distribution)
-7. [Traffic Light LED Module Wiring](#7-traffic-light-led-module-wiring)
+7. [Prototype Direct GPIO LED Wiring & Circuit Interfacing](#7-prototype-direct-gpio-led-wiring--circuit-interfacing)
 8. [IR Sensor Wiring](#8-ir-sensor-wiring)
 9. [OLED Wiring](#9-oled-wiring)
 10. [Emergency Switch Wiring](#10-emergency-switch-wiring)
@@ -41,7 +41,7 @@
 21. [Commissioning Procedure](#21-commissioning-procedure)
 22. [Hardware Bring-up](#22-hardware-bring-up)
 23. [GPIO Verification](#23-gpio-verification)
-24. [Traffic Light Module Verification](#24-traffic-light-module-verification)
+24. [Prototype Direct GPIO LED Verification](#24-prototype-direct-gpio-led-verification)
 25. [IR Sensor Verification](#25-ir-sensor-verification)
 26. [OLED Verification](#26-oled-verification)
 27. [Buzzer Verification](#27-buzzer-verification)
@@ -65,17 +65,28 @@ Urban emergency transit systems face critical bottlenecks due to static traffic 
 
 **SMART AEGIS** (**Automated Emergency Routing & Smart Traffic Corridor Preemption System**) solves this challenge through an RTOS-native multi-node edge computing platform. Built upon the hard real-time **QNX Neutrino RTOS 8.0** microkernel running on a cluster of four **Raspberry Pi 4 Model B** single-board computers, SMART AEGIS establishes an intelligent, preemptive green wave corridor that dynamically reserves intersections, arbitrates simultaneous emergency priorities, reroutes around obstacles with zero mission pause, and provides vehicle-to-everything (V2X) visual warnings.
 
-**Phase 15** delivers the physical realization of this architecture for final hackathon deployment. It transitions the validated software and symbolic designs into an operational physical demonstration rig. Each roadside intersection node directly drives an integrated 3-light Traffic Light LED Module through GPIO with microsecond transition speed. Every electrical connection, BCM GPIO pin assignment, sensor interface, power rail, and startup procedure is documented herein with absolute engineering rigor.
+**Phase 15** delivers the physical realization of this architecture for final hackathon deployment:
+- **Zero Software Redesign:** All Coordinator intelligence, Dijkstra route planning, green corridor scheduling, priority arbitration, hospital selection, Digital Twin telemetry, and Command Center monitoring logic remain 100% intact.
+- **Direct GPIO Prototype LED Architecture:** Relays and 3-light traffic modules are completely eliminated. In their place, direct Raspberry Pi GPIO LED control with individual $330\,\Omega$ current-limiting resistors is deployed across all intersections.
+- **Node-Specific Hardware Allocations:**
+  - **Coordinator (Raspberry Pi 1):** Zero LEDs connected. Dedicated entirely to supervisory orchestration, graph routing, and multi-node TCP/IP communication.
+  - **Intersection 1 (Raspberry Pi 2):** Exactly TWO LEDs: Red LED on BCM GPIO 5 (Pin 29) and Blue LED on BCM GPIO 6 (Pin 31).
+  - **Intersection 2 (Raspberry Pi 3):** Exactly TWO LEDs: Red LED on BCM GPIO 5 (Pin 29) and Blue LED on BCM GPIO 6 (Pin 31).
+  - **Intersection 3 (Raspberry Pi 4):** Due to prototype hardware availability constraints, exactly ONE LED: Blue LED on BCM GPIO 6 (Pin 31). Zero Red LED connected.
+- **Demonstration LED State Transitions:**
+  - **Normal Traffic Operation:** Intersection 1 & 2: Blue OFF, Red OFF. Intersection 3: Blue OFF.
+  - **Emergency Path Granted:** Intersection 1 & 2: Blue ON, Red OFF. Intersection 3: Blue ON.
+  - **Emergency Path Finished / Corridor Closed:** Intersection 1, 2, 3: Blue OFF (and Red OFF).
 
 ```
 +---------------------------------------------------------------------------------------------------+
 |                                  CORE ENGINEERING GUARANTEES                                      |
 +---------------------------------------------------------------------------------------------------+
 | 1. ZERO SOFTWARE REDESIGN: Phases 1-13 software core is 100% frozen, untouched, and guaranteed.   |
-| 2. CONFLICT-FREE GPIO: All 19 BCM pins verified for electrical logic, drive, and QNX compatibility.|
+| 2. CONFLICT-FREE GPIO: All BCM pins verified for electrical logic, drive, and QNX compatibility.  |
 | 3. NO LINUX APIS: Native QNX SDP 8.0 POSIX drivers only. Zero wiringPi, pigpio, or sysfs calls.   |
-| 4. SOLID-STATE SAFETY: Software mutual exclusion in RTOS driver prevents dual green indications.  |
-| 5. SINGLE 5.1V DC RAIL: No 12V supplies, electromechanical relays, or coil transients.            |
+| 4. SOLID-STATE DIRECT DRIVE: Microsecond LED response with 330 Ohm current limiters.               |
+| 5. SINGLE 5.1V DC RAIL: No 12V supplies, electromechanical relays, or inductive transients.       |
 | 6. AUDITABLE & REPEATABLE: Step-by-step procedures allow full assembly from an empty workbench.   |
 +---------------------------------------------------------------------------------------------------+
 ```
@@ -92,15 +103,16 @@ The SMART AEGIS physical demonstration system comprises industrial-grade compute
 | **Storage** | MicroSD Card | SanDisk Extreme Pro 32GB Class 10 A2 U3 | 4 | Nodes 1, 2, 3, 4 | Microkernel IFS boot image, configuration, and binaries |
 | **Power Logic** | Regulated Logic PSU | Mean Well LRS-75-5 (5.10V DC @ 14.0A Regulated) | 1 | Master Power | Powers 4x Raspberry Pi boards and all connected peripherals |
 | **Power Connect** | High-Current USB Cables | 20 AWG USB Type-A to USB Type-C (1.0m, 3A rated) | 4 | Nodes 1, 2, 3, 4 | Clean DC power delivery from 5V busbar to Raspberry Pi power input ports |
-| **Signals** | Traffic Light LED Modules | Integrated 3-Light Common-Cathode Module (Red, Yellow, Green)| 3 | Nodes 2, 3, 4 | Direct solid-state intersection traffic signal indication |
-| **Perception** | Optical IR Proximity Sensors | LM393 Optical Reflection Detector (Adjustable Potentiometer) | 4 | Nodes 2, 3, 4 | Optical vehicle detection (Int 1: 1, Int 2: 2, Int 3: 1) |
+| **Indicators (Red)**| 5mm High-Efficiency Red LED | 5mm Diffused Red LED ($V_f \approx 1.8\text{V}, 20\text{mA}$) + 330R | 2 | Nodes 2, 3 | Stop / Hold indication (Node 2: Pin 29, Node 3: Pin 29) |
+| **Indicators (Blue)**| 5mm High-Efficiency Blue LED | 5mm Clear Blue LED ($V_f \approx 2.8\text{V}, 20\text{mA}$) + 330R | 3 | Nodes 2, 3, 4 | Emergency green wave corridor indication (Pin 31 across Nodes 2, 3, 4) |
+| **Perception** | Optical IR Proximity Sensors | LM393 Optical Reflection Detector (Adjustable Potentiometer) | 3 | Nodes 2, 3, 4 | Optical vehicle detection (Int 1: Pin 32, Int 2: Pin 32, Int 3: Pin 32) |
 | **Operator HMI** | Emergency Push Button | Heavy-Duty Industrial Momentary Push Button (SPST-NO, 22mm) | 1 | Coordinator | Physical trigger at HOME dispatch station for mission launch |
 | **Operator HMI** | Police Override Switch | Toggle Switch (SPST Maintained Contact, Panel Mount) | 1 | Coordinator | Simulates verified police advisory for zero-pause dynamic rerouting |
 | **V2X Telemetry** | In-Vehicle OLED Display | 0.96" I2C Monochrome Display (SSD1306, 128x64 pixels, 3.3V) | 1 | Coordinator | Driver advisory display rendering real-time corridor & routing status |
 | **Acoustics** | High-Decibel Piezo Buzzer | 5V Active Electromagnetic Buzzer (2.7 kHz resonant frequency) | 1 | Coordinator | Acoustic corridor state alerts (5 distinct cadence patterns) |
 | **Transistor Buffer**| BJT Driver Circuit | 2N2222A NPN BJT + 1.0k Ohm base resistor + 1N4148 diode | 1 | Coordinator | Amplifies 3.3V GPIO to 5V rail for buzzer drive |
 | **Network** | Ethernet Switch / AP | TP-Link 5-Port Gigabit Switch / 5GHz 802.11ac Wi-Fi Gateway | 1 | Master Cluster | Sub-millisecond TCP/IP communication fabric (192.168.1.0/24) |
-| **Cabling** | Breadboard / Dupont Jumpers | 24 AWG Female-to-Female & Male-to-Female Dupont Wire (20cm) | 60 | Master Cluster | Point-to-point interconnects between GPIO headers and peripherals |
+| **Cabling** | Breadboard / Dupont Jumpers | 24 AWG Female-to-Female & Male-to-Female Dupont Wire (20cm) | 40 | Master Cluster | Point-to-point interconnects between GPIO headers and peripherals |
 
 ---
 
@@ -113,26 +125,28 @@ The physical layout mirrors a real-world municipal emergency route extending fro
 |                                  PHYSICAL CORRIDOR ROAD TOPOLOGY                                  |
 +---------------------------------------------------------------------------------------------------+
 
-   [ HOME STATION ]  (RPi 1: Master Coordinator - 192.168.1.100)
+   [ HOME STATION ]  (RPi 1: Master Coordinator - 192.168.1.100) — ZERO LEDS CONNECTED
          |
          |  Arterial Segment 1 (Speed: 50 km/h, Nominal Transit: 12.0s)
          v
-   [ INTERSECTION 1 ] (RPi 2: Traffic Node 1 - 192.168.1.101)
-     - Traffic Light LED Module 1 (Red: BCM 17, Yellow: BCM 27, Green: BCM 22)
-     - Approach Optical IR Proximity Sensor (BCM 12)
+   [ INTERSECTION 1 ] (RPi 2: Traffic Node 1 - 192.168.1.101) — TWO LEDS
+     - Red Stop LED (BCM 5, Pin 29)
+     - Blue Corridor LED (BCM 6, Pin 31)
+     - Approach Optical IR Proximity Sensor (BCM 12, Pin 32)
          |
          |  Arterial Segment 2 (Speed: 50 km/h, Nominal Transit: 14.5s)
          v
-   [ INTERSECTION 2 ] (RPi 3: Traffic Node 2 - 192.168.1.102) [PRIORITY ARBITRATION HUB]
-     - Traffic Light LED Module 2 (Red: BCM 17, Yellow: BCM 27, Green: BCM 22)
-     - Top Approach Optical IR Sensor (Code Red Inbound - BCM 12)
-     - Right Approach Optical IR Sensor (Code Yellow Cross-Traffic - BCM 13)
+   [ INTERSECTION 2 ] (RPi 3: Traffic Node 2 - 192.168.1.102) [PRIORITY ARBITRATION HUB] — TWO LEDS
+     - Red Stop LED (BCM 5, Pin 29)
+     - Blue Corridor LED (BCM 6, Pin 31)
+     - Approach Optical IR Proximity Sensor (BCM 12, Pin 32)
          |
          |  Arterial Segment 3 (Speed: 50 km/h, Nominal Transit: 11.0s)
          v
-   [ INTERSECTION 3 ] (RPi 4: Traffic Node 3 - 192.168.1.103)
-     - Traffic Light LED Module 3 (Red: BCM 17, Yellow: BCM 27, Green: BCM 22)
-     - Hospital Gate Optical IR Sensor (BCM 12)
+   [ INTERSECTION 3 ] (RPi 4: Traffic Node 3 - 192.168.1.103) — ONE LED (HARDWARE SHORTAGE)
+     - Blue Corridor LED (BCM 6, Pin 31)
+     - (Zero Red LED Connected)
+     - Hospital Gate Optical IR Sensor (BCM 12, Pin 32)
          |
          v
    [ TRAUMA HOSPITAL ] (Terminal Destination & Emergency Department Handover)
@@ -143,10 +157,10 @@ The physical layout mirrors a real-world municipal emergency route extending fro
 
 | Node Identifier | Physical Hardware | Static IP Address | Port | Role & Executable | Primary Responsibilities |
 | :--- | :--- | :--- | :---: | :--- | :--- |
-| **`RPI_COORD`** | Raspberry Pi 4 (4GB) | `192.168.1.100` | `9000` | Master Coordinator<br>`aegis_coordinator` | Mission intake, Dijkstra graph solver, green corridor reservation, priority arbitration, V2X OLED rendering, acoustic buzzer sequencing. |
-| **`INT_1`** | Raspberry Pi 4 (4GB) | `192.168.1.101` | `9001` | Traffic Node 1<br>`aegis_traffic_signal_node` | Intersection 1 signal actuation, direct GPIO LED control, vehicle approach optical sensing, keepalive heartbeat streaming. |
-| **`INT_2`** | Raspberry Pi 4 (4GB) | `192.168.1.102` | `9002` | Traffic Node 2<br>`aegis_traffic_signal_node` | Intersection 2 Priority Hub, multi-approach conflict resolution, dual IR sensing (Top vs Right approach), dynamic detour handling. |
-| **`INT_3`** | Raspberry Pi 4 (4GB) | `192.168.1.103` | `9003` | Traffic Node 3<br>`aegis_traffic_signal_node` | Intersection 3 Hospital Gate, terminal corridor clearance, hospital arrival optical verification, mission completion signal. |
+| **`RPI_COORD`** | Raspberry Pi 4 (4GB) | `192.168.1.100` | `9000` | Master Coordinator<br>`aegis_coordinator` | Mission intake, Dijkstra graph solver, green corridor reservation, priority arbitration, V2X OLED rendering, acoustic buzzer sequencing. **Zero LEDs connected**. |
+| **`INT_1`** | Raspberry Pi 4 (4GB) | `192.168.1.101` | `9001` | Traffic Node 1<br>`aegis_traffic_signal_node` | Intersection 1 signal actuation, direct GPIO LED control (Red Pin 29, Blue Pin 31), optical vehicle sensing, keepalive heartbeat streaming. |
+| **`INT_2`** | Raspberry Pi 4 (4GB) | `192.168.1.102` | `9002` | Traffic Node 2<br>`aegis_traffic_signal_node` | Intersection 2 Priority Hub, multi-approach conflict resolution, direct GPIO LED control (Red Pin 29, Blue Pin 31), dynamic detour handling. |
+| **`INT_3`** | Raspberry Pi 4 (4GB) | `192.168.1.103` | `9003` | Traffic Node 3<br>`aegis_traffic_signal_node` | Intersection 3 Hospital Gate, terminal corridor clearance, direct GPIO LED control (Blue Pin 31 only; zero Red LED), hospital arrival optical verification. |
 
 ---
 
@@ -154,7 +168,7 @@ The physical layout mirrors a real-world municipal emergency route extending fro
 
 #### 4.1 Master Cluster GPIO Allocation Table
 
-All 19 signals mapped across the four Raspberry Pi 4 Model B headers are verified to be conflict-free:
+All 13 active signals mapped across the four Raspberry Pi 4 Model B headers are verified to be conflict-free:
 
 ```
 +---------------------------------------------------------------------------------------------------+
@@ -165,25 +179,24 @@ All 19 signals mapped across the four Raspberry Pi 4 Model B headers are verifie
 | HOME_EMERGENCY_SWITCH    | Coordinator | BCM 23   | Pin 16   | INPUT     | 3.3V Pull-Up  | ACTIVE_LOW |
 | POLICE_OVERRIDE_SWITCH   | Coordinator | BCM 24   | Pin 18   | INPUT     | 3.3V Pull-Up  | ACTIVE_LOW |
 | HOME_BUZZER              | Coordinator | BCM 6    | Pin 31   | OUTPUT    | 3.3V -> BJT   | ACTIVE_HIGH|
-| COORDINATOR_STATUS_LED   | Coordinator | BCM 18   | Pin 12   | OUTPUT    | 3.3V LVTTL    | ACTIVE_HIGH|
 | V2X_OLED_SDA             | Coordinator | BCM 2    | Pin 3    | BIDIR     | 3.3V Open-Dr  | I2C DATA   |
 | V2X_OLED_SCL             | Coordinator | BCM 3    | Pin 5    | OUTPUT    | 3.3V Open-Dr  | I2C CLOCK  |
+| (NO LEDS CONNECTED)      | Coordinator | —        | —        | —         | —             | —          |
 +--------------------------+-------------+----------+----------+-----------+---------------+------------+
-| INT1_GPIO_RED            | Node 1      | BCM 17   | Pin 11   | OUTPUT    | 3.3V LVTTL    | ACTIVE_HIGH|
-| INT1_GPIO_YELLOW         | Node 1      | BCM 27   | Pin 13   | OUTPUT    | 3.3V LVTTL    | ACTIVE_HIGH|
-| INT1_GPIO_GREEN          | Node 1      | BCM 22   | Pin 15   | OUTPUT    | 3.3V LVTTL    | ACTIVE_HIGH|
-| INT1_IR_SENSOR           | Node 1      | BCM 12   | Pin 32   | INPUT     | 3.3V Pull-Up  | ACTIVE_LOW |
+| INT1_LED_RED             | Node 1      | BCM 5    | Pin 29   | OUTPUT    | 3.3V LVTTL    | ACTIVE_HIGH|
+| INT1_LED_BLUE            | Node 1      | BCM 6    | Pin 31   | OUTPUT    | 3.3V LVTTL    | ACTIVE_HIGH|
+| INT1_APPROACH_IR         | Node 1      | BCM 12   | Pin 32   | INPUT     | 3.3V Pull-Up  | ACTIVE_LOW |
+| (GND RETURN)             | Node 1      | Ground   | Pin 30   | RETURN    | 0V Reference  | —          |
 +--------------------------+-------------+----------+----------+-----------+---------------+------------+
-| INT2_GPIO_RED            | Node 2      | BCM 17   | Pin 11   | OUTPUT    | 3.3V LVTTL    | ACTIVE_HIGH|
-| INT2_GPIO_YELLOW         | Node 2      | BCM 27   | Pin 13   | OUTPUT    | 3.3V LVTTL    | ACTIVE_HIGH|
-| INT2_GPIO_GREEN          | Node 2      | BCM 22   | Pin 15   | OUTPUT    | 3.3V LVTTL    | ACTIVE_HIGH|
-| INT2_IR_SENSOR_TOP       | Node 2      | BCM 12   | Pin 32   | INPUT     | 3.3V Pull-Up  | ACTIVE_LOW |
-| INT2_IR_SENSOR_RIGHT     | Node 2      | BCM 13   | Pin 33   | INPUT     | 3.3V Pull-Up  | ACTIVE_LOW |
+| INT2_LED_RED             | Node 2      | BCM 5    | Pin 29   | OUTPUT    | 3.3V LVTTL    | ACTIVE_HIGH|
+| INT2_LED_BLUE            | Node 2      | BCM 6    | Pin 31   | OUTPUT    | 3.3V LVTTL    | ACTIVE_HIGH|
+| INT2_APPROACH_IR         | Node 2      | BCM 12   | Pin 32   | INPUT     | 3.3V Pull-Up  | ACTIVE_LOW |
+| (GND RETURN)             | Node 2      | Ground   | Pin 30   | RETURN    | 0V Reference  | —          |
 +--------------------------+-------------+----------+----------+-----------+---------------+------------+
-| INT3_GPIO_RED            | Node 3      | BCM 17   | Pin 11   | OUTPUT    | 3.3V LVTTL    | ACTIVE_HIGH|
-| INT3_GPIO_YELLOW         | Node 3      | BCM 27   | Pin 13   | OUTPUT    | 3.3V LVTTL    | ACTIVE_HIGH|
-| INT3_GPIO_GREEN          | Node 3      | BCM 22   | Pin 15   | OUTPUT    | 3.3V LVTTL    | ACTIVE_HIGH|
-| INT3_IR_SENSOR           | Node 3      | BCM 12   | Pin 32   | INPUT     | 3.3V Pull-Up  | ACTIVE_LOW |
+| INT3_LED_BLUE            | Node 3      | BCM 6    | Pin 31   | OUTPUT    | 3.3V LVTTL    | ACTIVE_HIGH|
+| (ZERO RED LED CONNECTED) | Node 3      | —        | —        | —         | —             | —          |
+| INT3_APPROACH_IR         | Node 3      | BCM 12   | Pin 32   | INPUT     | 3.3V Pull-Up  | ACTIVE_LOW |
+| (GND RETURN)             | Node 3      | Ground   | Pin 30   | RETURN    | 0V Reference  | —          |
 +--------------------------+-------------+----------+----------+-----------+---------------+------------+
 ```
 
@@ -196,6 +209,7 @@ All 19 signals mapped across the four Raspberry Pi 4 Model B headers are verifie
 ```
 +-------------------------------------------------------------+
 |              COORDINATOR STATION ELECTRICAL SCHEMATIC        |
+|              (ZERO LEDS CONNECTED — PURE TCP ENGINE)        |
 +-------------------------------------------------------------+
    Raspberry Pi 4 Model B (Node 1 - Master Coordinator)
    
@@ -210,9 +224,6 @@ All 19 signals mapped across the four Raspberry Pi 4 Model B headers are verifie
                                                                  |
    [Pin 14] Ground (GND) ----------------------------------------+
    
-   [Pin 12] BCM 18 (STATUS_LED) ----------> [ 330R Resistor ] ---> Green LED (+)
-   [Pin 6 ] Ground (GND) ----------------------------------------> Green LED (-)
-   
    [Pin 2 ] +5.0V DC Rail ----------------> Piezo Buzzer (+)
    [Pin 31] BCM 6 (BUZZER_GATE) ----------> [ 1k Resistor ] -> Base 2N2222A
                                             Collector --------> Piezo Buzzer (-)
@@ -220,24 +231,46 @@ All 19 signals mapped across the four Raspberry Pi 4 Model B headers are verifie
 +-------------------------------------------------------------+
 ```
 
-#### 5.2 Traffic Intersection Nodes Schematic (RPi 2, 3, 4)
+#### 5.2 Traffic Intersection 1 & 2 Schematic (RPi 2, RPi 3)
 
 ```
 +-------------------------------------------------------------+
-|           TRAFFIC INTERSECTION NODES ELECTRICAL SCHEMATIC    |
+|       TRAFFIC INTERSECTIONS 1 & 2 ELECTRICAL SCHEMATIC      |
+|       (EXACTLY TWO LEDS: RED PIN 29 + BLUE PIN 31)         |
 +-------------------------------------------------------------+
-   Raspberry Pi 4 Model B (Nodes 2, 3, 4 - Intersection RSU)
+   Raspberry Pi 4 Model B (Nodes 2 & 3 - Intersections 1 & 2)
    
    [Pin 1 ] +3.3V DC ---------------------> LM393 IR Sensor VCC
    [Pin 9 ] Ground (GND) -----------------> LM393 IR Sensor GND
-   [Pin 32] BCM 12 (IR_INPUT_A) <---------- LM393 IR Sensor OUT (Approach A)
-   [Pin 33] BCM 13 (IR_INPUT_B) <---------- LM393 IR Sensor OUT (Approach B - Node 2 Only)
+   [Pin 32] BCM 12 (APPROACH_IR) <-------- LM393 IR Sensor OUT
    
-   DIRECT GPIO TRAFFIC LIGHT LED MODULE:
-   [Pin 11] BCM 17 (GPIO_RED) ------------> Traffic Light Module Pin R (Red LED)
-   [Pin 13] BCM 27 (GPIO_YELLOW) ---------> Traffic Light Module Pin Y (Yellow LED)
-   [Pin 15] BCM 22 (GPIO_GREEN) ----------> Traffic Light Module Pin G (Green LED)
-   [Pin 14] Ground (GND) -----------------> Traffic Light Module Pin GND (Cathode)
+   DIRECT GPIO PROTOTYPE LEDS:
+   [Pin 29] BCM 5 (LED_RED)   -----------> [ 330R Resistor ] ---> Anode Red LED   ---+
+                                                                                     |
+   [Pin 31] BCM 6 (LED_BLUE)  -----------> [ 330R Resistor ] ---> Anode Blue LED  ---+
+                                                                                     |
+   [Pin 30] Ground (GND)      <--------------------------------- Common Cathode -----+
++-------------------------------------------------------------+
+```
+
+#### 5.3 Traffic Intersection 3 Schematic (RPi 4)
+
+```
++-------------------------------------------------------------+
+|           TRAFFIC INTERSECTION 3 ELECTRICAL SCHEMATIC       |
+|      (ONE LED ONLY: BLUE PIN 31 — ZERO RED LED CONNECTED)   |
++-------------------------------------------------------------+
+   Raspberry Pi 4 Model B (Node 4 - Intersection 3 Hospital Gate)
+   
+   [Pin 1 ] +3.3V DC ---------------------> LM393 IR Sensor VCC
+   [Pin 9 ] Ground (GND) -----------------> LM393 IR Sensor GND
+   [Pin 32] BCM 12 (APPROACH_IR) <-------- LM393 IR Sensor OUT
+   
+   DIRECT GPIO PROTOTYPE LED:
+   [Pin 31] BCM 6 (LED_BLUE)  -----------> [ 330R Resistor ] ---> Anode Blue LED  ---+
+   (Red LED: NOT CONNECTED — Hardware Shortage Specification)                       |
+                                                                                     |
+   [Pin 30] Ground (GND)      <--------------------------------- Cathode Return -----+
 +-------------------------------------------------------------+
 ```
 
@@ -273,8 +306,8 @@ A single industrial-grade Mean Well LRS-75-5 regulated power supply energizes al
   Pi 1   Pi 2   Pi 3   Pi 4   Aux 5V     Pi 1   Pi 2   Pi 3   Pi 4   Aux GND
   USB-C  USB-C  USB-C  USB-C  Buzzer     GND    GND    GND    GND    Buzzer
    |      |      |      |
-  OLED   LED    LED    LED
-  Disp   Mod1   Mod2   Mod3
+  OLED   LEDs   LEDs   LED
+  Disp   Int1   Int2   Int3
 ===================================================================================================
 ```
 
@@ -283,59 +316,55 @@ A single industrial-grade Mean Well LRS-75-5 regulated power supply energizes al
 | Subsystem Branch | Voltage | Nominal Current | Peak Current | Total Power | Sizing Factor |
 | :--- | :---: | :---: | :---: | :---: | :---: |
 | 4x Raspberry Pi 4 Model B (CPU loaded)| 5.1V DC | 4 x 0.85 A = 3.40 A | 4 x 2.50 A = 10.00 A | 51.0 W | Peak boot/burst load |
-| 3x Traffic Light LED Modules | 3.3V DC | 3 x 0.01 A = 0.03 A | 3 x 0.03 A = 0.09 A | 0.45 W | All LEDs lit concurrent |
-| 4x LM393 Optical IR Sensors | 3.3V DC | 4 x 0.015 A = 0.06 A | 4 x 0.02 A = 0.08 A | 0.26 W | Active beam detect |
+| 5x Prototype LEDs (with 330R) | 3.3V DC | 5 x 0.003 A = 0.015 A | 5 x 0.005 A = 0.025 A | 0.08 W | All LEDs lit concurrent |
+| 3x LM393 Optical IR Sensors | 3.3V DC | 3 x 0.015 A = 0.045 A | 3 x 0.020 A = 0.060 A | 0.20 W | Active beam detect |
 | 0.96" I2C SSD1306 OLED Display | 3.3V DC | 0.02 A | 0.035 A | 0.12 W | Full pixel display |
-| Acoustic Buzzer Driver Circuit | 5.0V DC | 0.00 A (idle) | 0.04 A | 0.20 W | 2.7 kHz resonant tone |
-| Dual 40mm 5V Chassis Fans | 5.0V DC | 0.16 A | 0.24 A | 1.20 W | Continuous cooling |
-| **TOTAL LOAD BUDGET** | — | **3.67 A** | **10.49 A** | **53.23 W** | **PSU Capacity: 14.0 A (71.4W)** |
+| Acoustic Buzzer Driver Circuit | 5.0V DC | 0.00 A (idle) | 0.040 A | 0.20 W | 2.7 kHz resonant tone |
+| Dual 40mm 5V Chassis Fans | 5.0V DC | 0.16 A | 0.240 A | 1.20 W | Continuous cooling |
+| **TOTAL LOAD BUDGET** | — | **3.64 A** | **10.40 A** | **52.80 W** | **PSU Capacity: 14.0 A (71.4W)** |
 
 > [!NOTE]
-> The Mean Well LRS-75-5 delivers 14.0A continuous output, providing a **33.5% safety margin** ($3.51\text{A}$ headroom) above absolute maximum peak cluster consumption.
+> The Mean Well LRS-75-5 delivers 14.0A continuous output, providing a **34.6% safety margin** ($3.60\text{A}$ headroom) above absolute maximum peak cluster consumption.
 
 ---
 
-### 7. Traffic Light LED Module Wiring
+### 7. Prototype Direct GPIO LED Wiring & Circuit Interfacing
 
-#### 7.1 Traffic Light LED Module Installation & Pin Allocation
+#### 7.1 Direct Solid-State GPIO LED Control Overview
 
-Each intersection uses an integrated 3-Light Traffic Signal LED Module featuring discrete Red, Yellow, and Green LEDs with a common cathode return:
+In place of bulky electromechanical relays or 3-light traffic lamp modules, the SMART AEGIS prototype utilizes direct GPIO LED control with individual $330\,\Omega$ current-limiting resistors:
 
-```
-+---------------------------------------------------------------------------------------------------+
-|                        TRAFFIC LIGHT LED MODULE PIN ALLOCATION                                    |
-+---------------------------------------------------------------------------------------------------+
-  Module Pin        Signal Name           Target RPi Pin     Logic Level     Operational Function
-  -------------------------------------------------------------------------------------------------
-  Pin R (Red)       GPIO_RED              Pin 11 (BCM 17)    3.3V LVTTL      Road A Stop Indication
-  Pin Y (Yellow)    GPIO_YELLOW           Pin 13 (BCM 27)    3.3V LVTTL      Corridor Clearance Warn
-  Pin G (Green)     GPIO_GREEN            Pin 15 (BCM 22)    3.3V LVTTL      Green Corridor Preempt
-  Pin GND           COMMON_GROUND         Pin 9 / Pin 14     0V Reference    Common Cathode Return
-+---------------------------------------------------------------------------------------------------+
-```
+- **Red Stop LED (`LED_RED`):** BCM 5 (Physical Header Pin 29). Present on Node 2 (Int 1) and Node 3 (Int 2).
+- **Blue Corridor LED (`LED_BLUE`):** BCM 6 (Physical Header Pin 31). Present on Node 2 (Int 1), Node 3 (Int 2), and Node 4 (Int 3).
+- **Common Ground (`GND`):** Physical Header Pin 30, directly adjacent to Pins 29 and 31.
 
-#### 7.2 Direct GPIO Wiring & Current-Limiting Resistor Specifications
+#### 7.2 LED Electrical Circuit & Current Limiting
 
-Standard 3-light traffic LED modules incorporate on-board surface-mount current-limiting resistors:
-- **Red LED:** $220\,\Omega \pm 5\%$ limits current to $I = (3.3\text{V} - 1.8\text{V}) / 220\,\Omega \approx 6.8\text{ mA}$.
-- **Yellow LED:** $330\,\Omega \pm 5\%$ limits current to $I = (3.3\text{V} - 2.0\text{V}) / 330\,\Omega \approx 3.9\text{ mA}$.
-- **Green LED:** $220\,\Omega \pm 5\%$ limits current to $I = (3.3\text{V} - 2.1\text{V}) / 220\,\Omega \approx 5.5\text{ mA}$.
-
-Total current per traffic node never exceeds $16.2\text{ mA}$, even if all three indicators are illuminated simultaneously during self-test. This is well within the Broadcom BCM2711 per-rail GPIO current capability ($50\text{ mA}$ maximum total).
+Each discrete LED connects directly between a Raspberry Pi GPIO output pin and Ground, with an inline $330\,\Omega \pm 5\%$ current-limiting resistor:
 
 ```
-   Raspberry Pi 4 GPIO Pin                          Traffic Light Module
+   Raspberry Pi 4 Header Pin                          Direct Prototype LED Circuit
    
-   Pin 11 (BCM 17) [OUTPUT HIGH: 3.3V] -----> [R] ---[ 220 Ohm ]--->| (Red LED)   ---+
-   Pin 13 (BCM 27) [OUTPUT HIGH: 3.3V] -----> [Y] ---[ 330 Ohm ]--->| (Yellow LED) -+--> [GND] -> Pin 9 (GND)
-   Pin 15 (BCM 22) [OUTPUT HIGH: 3.3V] -----> [G] ---[ 220 Ohm ]--->| (Green LED)  -+
+   Pin 29 (BCM 5) [OUTPUT HIGH: 3.3V] -----> [ 330 Ohm ] ----->| (RED LED)   ----+
+                                                                                  |
+   Pin 31 (BCM 6) [OUTPUT HIGH: 3.3V] -----> [ 330 Ohm ] ----->| (BLUE LED)  ----+
+                                                                                  |
+   Pin 30 (Ground: 0V)                <-------------------------------------------+
 ```
 
-#### 7.3 Solid-State Safety Switching & Mutual Exclusion
+- **Red LED Current:** $I_{\text{red}} = (3.3\text{V} - 1.8\text{V}) / 330\,\Omega \approx 4.5\text{ mA}$.
+- **Blue LED Current:** $I_{\text{blue}} = (3.3\text{V} - 2.8\text{V}) / 330\,\Omega \approx 1.5\text{ mA}$.
+- **Total Combined Current:** $< 6.0\text{ mA}$ per node, far below the Broadcom BCM2711 maximum pin drive limit ($16\text{ mA}$).
 
-1. **Microsecond Switching:** LED state changes occur in $< 1\,\mu\text{s}$, eliminating mechanical relay contact chatter, arc erosion, and contact welding risks.
-2. **Deterministic Driver Interlocks:** The QNX RTOS signal driver enforces mutual exclusion in software. If both Red and Green states are commanded simultaneously, the driver traps the conflict and forces an immediate safe **ALL_RED** transition.
-3. **Boot & Fail-Safe Invariant:** Upon QNX bootloader initialization or node crash, all GPIO lines default to inputs with weak pull-downs, ensuring all signal lights are extinguished or held at safe default states.
+#### 7.3 Demonstration LED Operational States
+
+The prototype LEDs visually demonstrate green wave preemption with crystal clarity:
+
+| Operational State | Intersection 1 (RPi 2) | Intersection 2 (RPi 3) | Intersection 3 (RPi 4) | Audible Buzzer (RPi 1) |
+| :--- | :---: | :---: | :---: | :---: |
+| **Normal Traffic Operation** | Blue OFF, Red OFF | Blue OFF, Red OFF | Blue OFF | Silent |
+| **Emergency Path Granted (Green Wave)** | **Blue ON**, Red OFF | **Blue ON**, Red OFF | **Blue ON** | Preemption Cadence |
+| **Emergency Path Finished (Corridor Closed)** | Blue OFF, Red OFF | Blue OFF, Red OFF | Blue OFF | Single Confirmation |
 
 ---
 
@@ -349,7 +378,7 @@ Total current per traffic node never exceeds $16.2\text{ mA}$, even if all three
   
   [Pin 1 ] +3.3V Power Rail     --------> [ VCC ] Supply Input (3.3V DC)
   [Pin 9 ] Ground (GND)         --------> [ GND ] Ground Return
-  [Pin 32] BCM 12 (IR_INPUT_A)  <-------- [ OUT ] Digital Open-Collector Output (Active-Low)
+  [Pin 32] BCM 12 (APPROACH_IR) <-------- [ OUT ] Digital Open-Collector Output (Active-Low)
 +---------------------------------------------------------------------------------------------------+
 ```
 
@@ -438,9 +467,6 @@ Total current per traffic node never exceeds $16.2\text{ mA}$, even if all three
 +---------------------------------------------------------------------------------------------------+
 ```
 
-- **Transistor:** 2N2222A NPN BJT in common-emitter switching configuration.
-- **Base Drive:** $1.0\text{ k}\Omega$ base resistor limits drive current to $2.6\text{ mA}$ from BCM 6, guaranteeing saturation ($V_{CE(sat)} \le 0.2\text{V}$).
-
 ---
 
 ### 13. Complete Cable Schedule
@@ -461,24 +487,19 @@ Total current per traffic node never exceeds $16.2\text{ mA}$, even if all three
 | W-108   | RPi 1 Pin 1      | OLED Pin VCC     | +3.3V_OLED            | 26AWG | Red    | Dupont F |
 | W-109   | RPi 1 Pin 9      | OLED Pin GND     | GND_OLED              | 26AWG | Black  | Dupont F |
 +---------+------------------+------------------+-----------------------+-------+--------+----------+
-| W-201   | RPi 2 Pin 11     | Traffic Mod 1 R  | INT1_GPIO_RED         | 24AWG | Red    | Dupont F |
-| W-202   | RPi 2 Pin 13     | Traffic Mod 1 Y  | INT1_GPIO_YELLOW      | 24AWG | Yellow | Dupont F |
-| W-203   | RPi 2 Pin 15     | Traffic Mod 1 G  | INT1_GPIO_GREEN       | 24AWG | Green  | Dupont F |
-| W-204   | RPi 2 Pin 9      | Traffic Mod 1 GND| INT1_LED_GND          | 24AWG | Black  | Dupont F |
-| W-205   | RPi 2 Pin 32     | IR Sensor 1 OUT  | INT1_IR_SENSOR        | 24AWG | Purple | Dupont F |
+| W-201   | RPi 2 Pin 29     | Red LED Anode    | INT1_LED_RED (330R)   | 24AWG | Red    | Dupont F |
+| W-202   | RPi 2 Pin 31     | Blue LED Anode   | INT1_LED_BLUE (330R)  | 24AWG | Blue   | Dupont F |
+| W-203   | RPi 2 Pin 30     | LED Cathodes     | GND_INT1              | 24AWG | Black  | Dupont F |
+| W-204   | RPi 2 Pin 32     | IR Sensor 1 OUT  | INT1_APPROACH_IR      | 24AWG | Purple | Dupont F |
 +---------+------------------+------------------+-----------------------+-------+--------+----------+
-| W-301   | RPi 3 Pin 11     | Traffic Mod 2 R  | INT2_GPIO_RED         | 24AWG | Red    | Dupont F |
-| W-302   | RPi 3 Pin 13     | Traffic Mod 2 Y  | INT2_GPIO_YELLOW      | 24AWG | Yellow | Dupont F |
-| W-303   | RPi 3 Pin 15     | Traffic Mod 2 G  | INT2_GPIO_GREEN       | 24AWG | Green  | Dupont F |
-| W-304   | RPi 3 Pin 9      | Traffic Mod 2 GND| INT2_LED_GND          | 24AWG | Black  | Dupont F |
-| W-305   | RPi 3 Pin 32     | IR Sensor 2A OUT | INT2_IR_SENSOR_TOP    | 24AWG | Purple | Dupont F |
-| W-306   | RPi 3 Pin 33     | IR Sensor 2B OUT | INT2_IR_SENSOR_RIGHT  | 24AWG | Grey   | Dupont F |
+| W-301   | RPi 3 Pin 29     | Red LED Anode    | INT2_LED_RED (330R)   | 24AWG | Red    | Dupont F |
+| W-302   | RPi 3 Pin 31     | Blue LED Anode   | INT2_LED_BLUE (330R)  | 24AWG | Blue   | Dupont F |
+| W-303   | RPi 3 Pin 30     | LED Cathodes     | GND_INT2              | 24AWG | Black  | Dupont F |
+| W-304   | RPi 3 Pin 32     | IR Sensor 2 OUT  | INT2_APPROACH_IR      | 24AWG | Purple | Dupont F |
 +---------+------------------+------------------+-----------------------+-------+--------+----------+
-| W-401   | RPi 4 Pin 11     | Traffic Mod 3 R  | INT3_GPIO_RED         | 24AWG | Red    | Dupont F |
-| W-402   | RPi 4 Pin 13     | Traffic Mod 3 Y  | INT3_GPIO_YELLOW      | 24AWG | Yellow | Dupont F |
-| W-403   | RPi 4 Pin 15     | Traffic Mod 3 G  | INT3_GPIO_GREEN       | 24AWG | Green  | Dupont F |
-| W-404   | RPi 4 Pin 9      | Traffic Mod 3 GND| INT3_LED_GND          | 24AWG | Black  | Dupont F |
-| W-405   | RPi 4 Pin 32     | IR Sensor 3 OUT  | INT3_IR_SENSOR        | 24AWG | Purple | Dupont F |
+| W-401   | RPi 4 Pin 31     | Blue LED Anode   | INT3_LED_BLUE (330R)  | 24AWG | Blue   | Dupont F |
+| W-402   | RPi 4 Pin 30     | Blue LED Cathode | GND_INT3              | 24AWG | Black  | Dupont F |
+| W-403   | RPi 4 Pin 32     | IR Sensor 3 OUT  | INT3_APPROACH_IR      | 24AWG | Purple | Dupont F |
 +---------+------------------+------------------+-----------------------+-------+--------+----------+
 | PWR-01  | 5V PSU Output +  | RPi 1-4 USB-C    | +5.10V_MAIN           | 20AWG | Red    | USB-C    |
 | PWR-02  | 5V PSU Output -  | Star Ground Bus  | GND_MAIN              | 20AWG | Black  | Ferrule  |
@@ -542,9 +563,6 @@ The four nodes communicate over a private Class C subnet (`192.168.1.0/24`) with
     +--------------+          +--------------+    +--------------+    +--------------+
 ```
 
-- **Protocol:** Non-blocking BSD sockets with framing headers, 16-bit CRC checksum validation, and sliding sequence numbers.
-- **Heartbeat:** $1.0\text{-second}$ interval; node failure declared after 3 missed beats ($3000\text{ ms}$).
-
 ---
 
 ### 16. Bench Assembly Procedure
@@ -567,17 +585,15 @@ The four nodes communicate over a private Class C subnet (`192.168.1.0/24`) with
     - Route 20 AWG USB-C power leads from 5V distribution busbar to each Pi USB-C power input port.
     - Verify power cable polarity with DMM before connecting.
     
-  STEP 4: Traffic Light LED Module Installation
-    - Position Traffic Light LED Module 1 at Intersection 1; Module 2 at Int 2; Module 3 at Int 3.
-    - Connect 4-conductor Dupont ribbon cable from Pi header to each module:
-        Red Pin (R)    <---> Header Pin 11 (BCM 17)
-        Yellow Pin (Y) <---> Header Pin 13 (BCM 27)
-        Green Pin (G)  <---> Header Pin 15 (BCM 22)
-        Ground Pin(GND)<---> Header Pin 9 or Pin 14 (GND)
+  STEP 4: Prototype Direct GPIO LED Installation
+    - Intersection 1 (RPi 2): Connect Red LED to Pin 29, Blue LED to Pin 31, Cathodes to Pin 30 (GND).
+    - Intersection 2 (RPi 3): Connect Red LED to Pin 29, Blue LED to Pin 31, Cathodes to Pin 30 (GND).
+    - Intersection 3 (RPi 4): Connect Blue LED to Pin 31, Cathode to Pin 30 (GND). (No Red LED).
+    - Coordinator (RPi 1): Zero LEDs connected.
         
   STEP 5: Optical IR Proximity Sensor Installation
-    - Mount LM393 IR sensors facing oncoming traffic approaches (Int 1: 1, Int 2: 2, Int 3: 1).
-    - Wire VCC to Pin 1 (+3.3V), GND to Pin 9, and OUT to Pin 32 (BCM 12) [Pin 33 for Int 2 Right].
+    - Mount LM393 IR sensors facing oncoming traffic approaches (Int 1: 1, Int 2: 1, Int 3: 1).
+    - Wire VCC to Pin 1 (+3.3V), GND to Pin 9, and OUT to Pin 32 (BCM 12).
     
   STEP 6: Coordinator Peripheral Wiring
     - Connect Emergency Push Button to Pin 16 (BCM 23) and Pin 14 (GND).
@@ -586,8 +602,8 @@ The four nodes communicate over a private Class C subnet (`192.168.1.0/24`) with
     - Assemble 2N2222A buzzer driver on mini-breadboard and connect base to Pin 31 (BCM 6).
     
   STEP 7: Pre-Power Cold Inspection
-    - Inspect all 19 signal leads against Master GPIO Mapping Table.
-    - Verify zero short circuits between 5V DC bus and ground with DMM ($R > 100\text{ k}\Omega$).
+    - Inspect all 13 signal leads against Master GPIO Mapping Table.
+    - Verify zero short circuits between 5V DC bus and ground with DMM (R > 100 kOhm).
 +---------------------------------------------------------------------------------------------------+
 ```
 
@@ -619,14 +635,14 @@ Execute automated deployment from the host workstation:
 #!/bin/bash
 # deploy_cluster.sh - SMART AEGIS Automated Deployment
 NODES=("192.168.1.100" "192.168.1.101" "192.168.1.102" "192.168.1.103")
-BINARIES=("aegis_coordinator" "aegis_traffic_signal_node" "aegis_commissioning")
+BINARIES=("aegis_coordinator" "aegis_traffic_signal_node" "test_cluster_deployment_hardware")
 
 echo "=== Deploying SMART AEGIS Binaries to Cluster ==="
 for IP in "${NODES[@]}"; do
     echo "Deploying to node: $IP"
     ssh root@$IP "mkdir -p /opt/aegis/bin /opt/aegis/config /opt/aegis/logs"
     scp build/bin/* root@$IP:/opt/aegis/bin/
-    scp config/cluster/rpi*.conf root@$IP:/opt/aegis/config/
+    scp config/cluster/production/rpi*.conf root@$IP:/opt/aegis/config/
     ssh root@$IP "chmod +x /opt/aegis/bin/*"
 done
 echo "=== Deployment Complete ==="
@@ -648,9 +664,9 @@ To update software without re-flashing:
 
 1. **Phase 1 (Power-On):** Energize Mean Well 5V PSU. All 4 Raspberry Pis boot QNX 8.0 concurrently ($\le 18\text{s}$).
 2. **Phase 2 (Network Convergence):** Network gateway verifies static ARP entries and TCP connectivity.
-3. **Phase 3 (Coordinator Launch):** `aegis_coordinator` starts on RPi 1, binds to port `9000`, initializes I2C OLED display, and sounds 2-pulse ready chime on buzzer.
+3. **Phase 3 (Coordinator Launch):** `aegis_coordinator` starts on RPi 1, binds to port `9000`, initializes I2C OLED display, and sounds 2-pulse ready chime on buzzer. Zero LEDs illuminated on Coordinator.
 4. **Phase 4 (Traffic Nodes Launch):** `aegis_traffic_signal_node` launches on RPi 2, 3, 4. Each node establishes persistent TCP connection to Coordinator.
-5. **Phase 5 (Default All-Red):** Traffic light modules illuminate **RED** on all approaches, waiting for corridor preemption requests.
+5. **Phase 5 (Default Normal Operation):** Prototype LEDs remain OFF on all intersections (Blue OFF, Red OFF), waiting for green corridor preemption requests.
 
 ---
 
@@ -658,16 +674,19 @@ To update software without re-flashing:
 
 Execute automated commissioning via:
 ```bash
-./build/bin/aegis_commissioning --node RPI_ALL
+./build/bin/test_cluster_deployment_hardware
 ```
-- **Vector 1:** QNX microkernel tick resolution and monotonic clock sync verified ($< 1.0\text{ ms}$).
-- **Vector 2:** Traffic Light LED Module mutual exclusion verified: Red, Yellow, Green step sequence OK.
-- **Vector 3:** Optical IR sensor beam trip detection verified on all channels.
-- **Vector 4:** I2C OLED display frame rendering verified.
-- **Vector 5:** Acoustic buzzer resonant tone verified.
-- **Vector 6:** Emergency push button and police switch interrupt loops verified.
-- **Vector 7:** TCP socket streaming latency verified ($< 2.5\text{ ms}$).
-- **Vector 8:** Cluster quorum and heartbeat synchronization established.
+- **Vector 1:** Network Connectivity (TCP/IP Mesh) verified ($< 5.0\text{ ms}$).
+- **Vector 2:** Node Configuration & Pin Allocation verified with zero collisions.
+- **Vector 3:** GPIO Prototype LED & Hardware Layer verified:
+  - Coordinator: Zero LEDs expected.
+  - Intersection 1: GPIO 5 (Red) & GPIO 6 (Blue) loopback verified.
+  - Intersection 2: GPIO 5 (Red) & GPIO 6 (Blue) loopback verified.
+  - Intersection 3: GPIO 6 (Blue) loopback verified; zero Red LED (shortage specification).
+- **Vector 4:** Direct GPIO Prototype LED Driver & State Transitions verified.
+- **Vector 5:** Optical IR Sensor Debouncing & Health verified ($30\text{ ms}$ filter).
+- **Vector 6:** EventBus Inter-Module Communication verified.
+- **Vector 7:** Cluster Time Synchronization verified ($\pm 5.0\text{ ms}$ drift).
 
 ---
 
@@ -683,40 +702,37 @@ Execute automated commissioning via:
 
 Run the GPIO diagnostic loopback test:
 ```bash
-./build/bin/aegis_commissioning --test gpio_loopback
+./build/bin/test_cluster_deployment_hardware
 ```
-Verifies electrical high/low transition, rise time ($< 15\text{ ns}$), and pull-up bias on all 19 assigned pins.
+Verifies electrical high/low transition, rise time ($< 15\text{ ns}$), and pull-up bias on all assigned pins.
 
 ---
 
-### 24. Traffic Light Module Verification
+### 24. Prototype Direct GPIO LED Verification
 
-Execute the dedicated Traffic Light Module diagnostic routine:
-```bash
-./build/bin/aegis_commissioning --test traffic_signal_led
-```
+Execute the dedicated Prototype LED diagnostic routine:
 
 ```
 +---------------------------------------------------------------------------------------------------+
-|                        TRAFFIC LIGHT LED FUNCTIONAL STEP SEQUENCE                                 |
+|                        PROTOTYPE LED FUNCTIONAL STEP SEQUENCE                                     |
 +---------------------------------------------------------------------------------------------------+
-  Step 1: All-Red Verification
-    - Assert INTx_GPIO_RED = HIGH. Verify Red LED illuminates crisp and bright.
-    - Measure current draw: 6.8 mA. Verify Yellow and Green LEDs are completely dark.
+  Step 1: Normal State Verification (Resting)
+    - Verify Blue LED is OFF across all three intersections.
+    - Verify Red LED is OFF across Intersections 1 & 2.
     
-  Step 2: Yellow Clearance Verification
-    - De-assert Red; assert INTx_GPIO_YELLOW = HIGH for 3.0 seconds.
-    - Verify Yellow LED illuminates; measure current draw: 3.9 mA.
+  Step 2: Emergency Corridor Preemption (Green Wave Granted)
+    - Command GrantEmergencyPath():
+        Intersection 1 (RPi 2): Blue LED turns ON, Red LED turns OFF.
+        Intersection 2 (RPi 3): Blue LED turns ON, Red LED turns OFF.
+        Intersection 3 (RPi 4): Blue LED turns ON.
+    - Measure current draw: Blue LED approx 1.5 mA at 3.3V through 330R.
     
-  Step 3: Green Preemption Verification
-    - De-assert Yellow; assert INTx_GPIO_GREEN = HIGH for 5.0 seconds.
-    - Verify Green LED illuminates; measure current draw: 5.5 mA.
-    
-  Step 4: Mutual Exclusion Conflict Test
-    - Command simultaneous Green and Red: driver must reject and force immediate ALL_RED.
-    
-  Step 5: Safe Shutdown Verification
-    - Terminate driver process: verify all GPIO lines return to low or safe default state.
+  Step 3: Corridor Clearance & Closure
+    - Command CloseEmergencyPath():
+        Intersection 1 (RPi 2): Blue LED turns OFF.
+        Intersection 2 (RPi 3): Blue LED turns OFF.
+        Intersection 3 (RPi 4): Blue LED turns OFF.
+    - Verify safe return to normal resting state.
 +---------------------------------------------------------------------------------------------------+
 ```
 
@@ -793,10 +809,10 @@ The Hardware Acceptance Test (HAT) certifies the physical rig for hackathon pres
 | HAT-03  | Network Latency          | Ping sweep 100 packets             | Latency < 1.0 ms avg    |
 | HAT-04  | BSD Socket Handshake     | Start Coordinator & Nodes          | 4/4 connected, CRC16 OK |
 | HAT-05  | Heartbeat Streaming      | Monitor 60 seconds idle            | 0 missed heartbeats     |
-| HAT-06  | Traffic Light Illumination| Cycle Red -> Yellow -> Green      | 100% optical visibility |
-| HAT-07  | Mutual Exclusion Lock    | Attempt dual green command         | Trapped; All-Red safe   |
+| HAT-06  | Prototype LED Drive      | Cycle Blue ON / Red OFF            | Crisp optical contrast  |
+| HAT-07  | Coordinator Pure TCP     | Verify Coordinator GPIO            | Zero LEDs illuminated   |
 | HAT-08  | Optical IR Detection     | Obstruct IR sensor beam            | Latency < 30 ms         |
-| HAT-09  | Dual IR Priority Hub     | Simultaneous trip on Int 2         | Higher priority wins    |
+| HAT-09  | Hardware Shortage Node 3 | Inspect Node 3 (Int 3)             | Blue LED only; zero Red |
 | HAT-10  | OLED Rendering           | Display preemption sequence        | Crisp 128x64 text       |
 | HAT-11  | Buzzer Acoustic Rhythms  | Trigger all 5 preemption patterns  | Audible at 2.7 kHz      |
 | HAT-12  | Emergency Mission Intake | Press HOME Emergency Push Button   | Instant corridor plan   |
@@ -814,32 +830,36 @@ The Hardware Acceptance Test (HAT) certifies the physical rig for hackathon pres
 |                                  HACKATHON DEMO EXECUTION SCRIPT                                  |
 +---------------------------------------------------------------------------------------------------+
   STAGE 1: Baseline Normal City Traffic
-    - Intersections 1, 2, 3 cycle through normal traffic light phases (Red -> Green -> Yellow).
+    - Intersections 1, 2, 3 in normal state: Blue LEDs OFF, Red LEDs OFF.
+    - Coordinator operates purely via TCP; zero LEDs illuminated on Coordinator.
     - OLED displays "SMART AEGIS - SYSTEM NORMAL - MONITORING".
     
   STAGE 2: Emergency Call Intake & Green Corridor Activation
     - Presenter presses the HOME EMERGENCY PUSH BUTTON at the Coordinator Station.
     - Buzzer sounds continuous preemption alert.
     - OLED updates instantly: "MISSION INTAKE: AMB_01 (CODE RED) -> PREEMPTING".
-    - Intersections 1, 2, 3 immediately switch their Traffic Light Modules to GREEN preemption.
+    - Intersections 1, 2, 3 immediately switch their Blue LEDs ON (Emergency Path Granted).
+    - Red LEDs remain OFF.
     
   STAGE 3: Optical Proximity Tracking Across Intersections
-    - Presenter moves ambulance model across Intersection 1; IR sensor trips.
-    - Intersection 1 transitions back to normal after ambulance passes.
+    - Presenter moves ambulance model across Intersection 1; IR sensor trips (Pin 32).
+    - Intersection 1 transitions Blue LED OFF after ambulance clears.
     
   STAGE 4: Priority Arbitration at Intersection 2
-    - Conflicting ambulance AMB_02 (Code Yellow) trips Right IR sensor at Intersection 2.
-    - Priority Scheduler grants Green to primary Code Red, holding Code Yellow at Red.
+    - Conflicting ambulance AMB_02 (Code Yellow) approaches Intersection 2.
+    - Priority Scheduler arbitrates: AMB_01 (Code Red) retains Blue LED ON corridor preemption.
+    - AMB_02 is held until corridor clears.
     
   STAGE 5: Police-Assisted Dynamic Route Replanning
-    - Presenter activates the POLICE OVERRIDE SWITCH at Intersection 2.
+    - Presenter activates the POLICE OVERRIDE SWITCH at the Coordinator.
     - Coordinator receives verified police advisory; calculates dynamic detour around Int 2.
     - Corridor updates with ZERO mission pause; OLED displays detour routing.
     
   STAGE 6: Hospital Handover & Corridor Release
-    - Ambulance trips Intersection 3 IR sensor at Hospital gate.
+    - Ambulance trips Intersection 3 IR sensor at Hospital gate (Pin 32).
+    - Blue LED on Intersection 3 turns OFF.
     - Buzzer sounds handover chime; OLED renders "HOSPITAL ARRIVAL - CORRIDOR RELEASED".
-    - All intersections restore normal traffic cycles.
+    - All intersections restore normal resting states (All Blue LEDs OFF).
 +---------------------------------------------------------------------------------------------------+
 ```
 
@@ -853,8 +873,8 @@ The Hardware Acceptance Test (HAT) certifies the physical rig for hackathon pres
 +----------------------+-----------------------------+----------------------------------------------+
 | Failure Symptom      | Root Cause                  | Corrective Action                            |
 +----------------------+-----------------------------+----------------------------------------------+
-| Traffic LED unlit    | Loose Dupont ground lead    | Verify Pin GND connection to Pi Pin 9/14     |
-| Wrong LED illuminates| Inverted R/Y/G wire pairing | Swap Pin 11/13/15 connections against table  |
+| LED unlit            | Reversed LED polarity       | Connect longer lead (anode) to Pin 29/31     |
+| LED unlit on Node 3  | Expected hardware shortage  | Node 3 has Blue LED only; zero Red LED       |
 | Dim LED output       | Missing logic high voltage  | Check GPIO pin configuration (must be OUTPUT)|
 | IR beam stuck active | Optical sensor blinded/dirty| Clean lens; turn potentiometer CCW to trim   |
 | OLED blank           | Wrong I2C address or wiring | Probe bus with i2cdetect -y 1; verify 0x3C   |
@@ -884,7 +904,7 @@ The Hardware Acceptance Test (HAT) certifies the physical rig for hackathon pres
 
 ### 36. Future Expansion Possibilities
 
-- **Dual-Approach Signal Heads:** Connecting a second 3-light traffic module to each Pi provides complete 6-LED dual-approach control.
+- **Dual-Approach Signal Heads:** Connecting a second LED pair to each Pi provides complete 4-LED dual-approach control.
 - **I2C Port Expanders:** Integrating MCP23017 expanders allows 16 isolated signal channels per intersection.
 - **C-V2X Radios:** Direct integration of 5.9 GHz DSRC / C-V2X transceivers into QNX network stack.
 - **Grid Scaling:** Software architecture natively scales to 32+ intersections without coordinator redesign.
@@ -899,7 +919,11 @@ The Hardware Acceptance Test (HAT) certifies the physical rig for hackathon pres
  [ ] 3. All 4 Raspberry Pis running QNX Neutrino RTOS 8.0 with static IP configuration.
  [ ] 4. All production configuration files deployed to /opt/aegis/config/node.conf.
  [ ] 5. Wi-Fi / Ethernet switch active with static ARP reservations.
- [ ] 6. Traffic Light LED Modules verified on all three intersections (Red, Yellow, Green).
+ [ ] 6. Direct GPIO Prototype LEDs verified:
+        - Coordinator: Zero LEDs connected.
+        - Intersection 1: Red LED (Pin 29) & Blue LED (Pin 31) verified.
+        - Intersection 2: Red LED (Pin 29) & Blue LED (Pin 31) verified.
+        - Intersection 3: Blue LED (Pin 31) verified; zero Red LED (shortage specification).
  [ ] 7. Optical IR sensors calibrated for 5 cm - 10 cm vehicle detection.
  [ ] 8. OLED renders V2X messages with zero visual artifacting.
  [ ] 9. Acoustic buzzer verified at 2.7 kHz resonant preemption tone.
@@ -919,18 +943,18 @@ The Hardware Acceptance Test (HAT) certifies the physical rig for hackathon pres
              BCM 3 (I2C-1 SCL) (Pin 5)  (6)  Ground
                          BCM 4 (Pin 7)  (8)  BCM 14 (UART TX)
                         Ground (Pin 9)  (10) BCM 15 (UART RX)
-         INTx_GPIO_RED: BCM 17 (Pin 11) (12) BCM 18: STATUS_LED
-      INTx_GPIO_YELLOW: BCM 27 (Pin 13) (14) Ground
-       INTx_GPIO_GREEN: BCM 22 (Pin 15) (16) BCM 23: EMERGENCY_SW
+                        BCM 17 (Pin 11) (12) BCM 18
+                        BCM 27 (Pin 13) (14) Ground
+                        BCM 22 (Pin 15) (16) BCM 23: EMERGENCY_SW
                         +3.3V (Pin 17) (18) BCM 24: POLICE_SW
                         BCM 10 (Pin 19) (20) Ground
                          BCM 9 (Pin 21) (22) BCM 25
                         BCM 11 (Pin 23) (24) BCM 8
                         Ground (Pin 25) (26) BCM 7
          (Reserved EEPROM ID) (Pin 27) (28) (Reserved EEPROM ID)
-                         BCM 5 (Pin 29) (30) Ground
-            HOME_BUZZER: BCM 6 (Pin 31) (32) BCM 12: INTx_IR_SENSOR (Approach A)
-   INT2_IR_SENSOR_RIGHT: BCM 13 (Pin 33) (34) Ground
+          INT1/2_LED_RED: BCM 5 (Pin 29) (30) Ground: LED Cathode Common
+  INT1/2/3_LED_BLUE/BUZZ: BCM 6 (Pin 31) (32) BCM 12: INTx_APPROACH_IR
+                        BCM 13 (Pin 33) (34) Ground
                         BCM 19 (Pin 35) (36) BCM 16
                         BCM 26 (Pin 37) (38) BCM 20
                         Ground (Pin 39) (40) BCM 21
@@ -943,19 +967,20 @@ The Hardware Acceptance Test (HAT) certifies the physical rig for hackathon pres
 | **v1.0.0** | 2026-10-31 | Initial symbolic hardware reservation specification | SMART AEGIS Core Team |
 | **v1.2.0** | 2026-10-31 | Approved conflict-free BCM GPIO mappings and schematics | Hardware Systems Lead |
 | **v1.5.0** | 2026-10-31 | Comprehensive 38-section engineering deployment handbook | Lead Systems Architect |
-| **v2.0.0** | 2026-10-31 | Final Hackathon Hardware: Direct GPIO Traffic Light LED Module (relays & 12V eliminated) | Lead Hardware Architect |
+| **v2.0.0** | 2026-10-31 | Direct GPIO Traffic Light LED Module (relays & 12V eliminated) | Lead Hardware Architect |
+| **v2.5.0** | 2026-10-31 | Final Prototype Architecture: Direct GPIO LEDs (Int 1 & 2: Red/Blue; Int 3: Blue only; Coord: 0 LEDs) | Lead Hardware Architect |
 
 #### 38.3 Master Metadata
 
 ```
-Project Name:       SMART AEGIS (Automated Emergency Routing System)
+Project Name:        SMART AEGIS (Automated Emergency Routing System)
 Document Identifier: AEGIS-MAN-HW-2026-PHASE15
-Version Number:     2.0.0
-Release Date:       October 31, 2026
-Document Owner:     Hardware Integration & Deployment Directorate
-Hardware Revision:  HW-REV-3.0 (4-Pi Cluster + Traffic Light LED Modules + LM393 IR)
-Software Revision:  v1.0-hackathon-core (Phases 1-15 Verified)
-Operating System:   QNX Neutrino RTOS 8.0 Starter Kit (aarch64le)
-Compute Platform:   Raspberry Pi 4 Model B (4 GB RAM, Quad Cortex-A72 @ 1.5 GHz)
-Verification Status: APPROVED FOR LIVE HARDWARE COMMISSIONING & DEMONSTRATION
+Version Number:      2.5.0
+Release Date:        October 31, 2026
+Document Owner:      Hardware Integration & Deployment Directorate
+Hardware Revision:   HW-REV-3.5 (4-Pi Cluster + Direct GPIO LEDs: Int 1/2 Red/Blue, Int 3 Blue only, Coord 0 LEDs)
+Software Revision:   v1.0-hackathon-core (Phases 1-15 Verified)
+Operating System:    QNX Neutrino RTOS 8.0 Starter Kit (aarch64le)
+Compute Platform:    Raspberry Pi 4 Model B (4 GB RAM, Quad Cortex-A72 @ 1.5 GHz)
+Verification Status:  APPROVED FOR LIVE HARDWARE COMMISSIONING & DEMONSTRATION
 ```

@@ -77,20 +77,64 @@ ValidationVectorResult DeploymentValidator::ValidateConfiguration() {
 ValidationVectorResult DeploymentValidator::ValidateGPIO() {
     uint64_t startUs = common::TimeUtils::GetMonotonicTimeMs() * 1000;
     ValidationVectorResult res;
-    res.vectorName = "Vector 3: GPIO Hardware Abstraction Layer";
+    res.vectorName = "Vector 3: GPIO Prototype LED & Hardware Layer";
 
-    if (hal_) {
-        bool regOk = hal_->IsSignalRegistered(StandardSignals::ROAD_A_RED);
-        bool writeOk = hal_->SetSignal(StandardSignals::ROAD_A_RED, true);
-        bool readOk = hal_->GetSignal(StandardSignals::ROAD_A_RED);
-        hal_->SetSignal(StandardSignals::ROAD_A_RED, false);
-
-        res.passed = regOk && writeOk && readOk;
-        res.diagnosticMessage = res.passed ? "Symbolic GPIO mapping and read/write loopback verified"
-                                           : "GPIO HAL read/write verification failed";
-    } else {
+    if (!hal_) {
         res.passed = false;
         res.diagnosticMessage = "Null GPIO HAL";
+        res.latencyUs = (common::TimeUtils::GetMonotonicTimeMs() * 1000) - startUs;
+        return res;
+    }
+
+    std::string nodeId = configMgr_ ? configMgr_->GetProfile().nodeId : (relayDriver_ ? relayDriver_->GetNodeId() : "");
+    NodeRole role = configMgr_ ? configMgr_->GetProfile().role : NodeRole::TRAFFIC_NODE;
+
+    if (role == NodeRole::COORDINATOR || nodeId == "RPI_COORD" || nodeId == "COORD" || nodeId == "COORDINATOR") {
+        // Coordinator: No LEDs expected
+        res.passed = true;
+        res.diagnosticMessage = "Coordinator validated: Zero LEDs expected (pure TCP/IP communication engine)";
+    } else if (nodeId == "INT_3" || nodeId == "INT3" || nodeId == "RPI_INT3" || nodeId == "NODE_C") {
+        // Intersection 3: Validate GPIO 6 only (Blue LED). Zero Red LED due to hardware shortage.
+        hal_->RegisterSignal(StandardSignals::LED_BLUE, 6, PinDirection::OUTPUT, ActivePolarity::ACTIVE_HIGH);
+        bool write6 = hal_->SetSignal(StandardSignals::LED_BLUE, true);
+        bool read6 = hal_->GetSignal(StandardSignals::LED_BLUE);
+        hal_->SetSignal(StandardSignals::LED_BLUE, false);
+
+        res.passed = write6 && read6;
+        res.diagnosticMessage = res.passed ? "Intersection 3 validated: GPIO6 (Blue LED) verified; zero Red LED (hardware shortage)"
+                                           : "Intersection 3 GPIO6 (Blue LED) loopback failed";
+    } else if (nodeId == "INT_2" || nodeId == "INT2" || nodeId == "RPI_INT2" || nodeId == "NODE_B") {
+        // Intersection 2: Validate GPIO 5 and GPIO 6
+        hal_->RegisterSignal(StandardSignals::LED_RED, 5, PinDirection::OUTPUT, ActivePolarity::ACTIVE_HIGH);
+        hal_->RegisterSignal(StandardSignals::LED_BLUE, 6, PinDirection::OUTPUT, ActivePolarity::ACTIVE_HIGH);
+
+        bool write5 = hal_->SetSignal(StandardSignals::LED_RED, true);
+        bool read5 = hal_->GetSignal(StandardSignals::LED_RED);
+        hal_->SetSignal(StandardSignals::LED_RED, false);
+
+        bool write6 = hal_->SetSignal(StandardSignals::LED_BLUE, true);
+        bool read6 = hal_->GetSignal(StandardSignals::LED_BLUE);
+        hal_->SetSignal(StandardSignals::LED_BLUE, false);
+
+        res.passed = write5 && read5 && write6 && read6;
+        res.diagnosticMessage = res.passed ? "Intersection 2 validated: GPIO5 (Red LED) & GPIO6 (Blue LED) verified operational"
+                                           : "Intersection 2 GPIO5/GPIO6 loopback failed";
+    } else {
+        // Intersection 1 (or generic default): Validate GPIO 5 and GPIO 6
+        hal_->RegisterSignal(StandardSignals::LED_RED, 5, PinDirection::OUTPUT, ActivePolarity::ACTIVE_HIGH);
+        hal_->RegisterSignal(StandardSignals::LED_BLUE, 6, PinDirection::OUTPUT, ActivePolarity::ACTIVE_HIGH);
+
+        bool write5 = hal_->SetSignal(StandardSignals::LED_RED, true);
+        bool read5 = hal_->GetSignal(StandardSignals::LED_RED);
+        hal_->SetSignal(StandardSignals::LED_RED, false);
+
+        bool write6 = hal_->SetSignal(StandardSignals::LED_BLUE, true);
+        bool read6 = hal_->GetSignal(StandardSignals::LED_BLUE);
+        hal_->SetSignal(StandardSignals::LED_BLUE, false);
+
+        res.passed = write5 && read5 && write6 && read6;
+        res.diagnosticMessage = res.passed ? "Intersection 1 validated: GPIO5 (Red LED) & GPIO6 (Blue LED) verified operational"
+                                           : "Intersection 1 GPIO5/GPIO6 loopback failed";
     }
 
     res.latencyUs = (common::TimeUtils::GetMonotonicTimeMs() * 1000) - startUs;
@@ -100,21 +144,26 @@ ValidationVectorResult DeploymentValidator::ValidateGPIO() {
 ValidationVectorResult DeploymentValidator::ValidateRelay() {
     uint64_t startUs = common::TimeUtils::GetMonotonicTimeMs() * 1000;
     ValidationVectorResult res;
-    res.vectorName = "Vector 4: Relay Driver & Conflict Interlock";
+    res.vectorName = "Vector 4: Direct GPIO Prototype LED Driver & State Transitions";
 
-    if (relayDriver_) {
-        bool allRedOk = relayDriver_->SetAllRed();
-        bool normalPhaseOk = relayDriver_->SetNormalPhase(TrafficApproach::ROAD_A);
+    std::string nodeId = configMgr_ ? configMgr_->GetProfile().nodeId : (relayDriver_ ? relayDriver_->GetNodeId() : "");
+    NodeRole role = configMgr_ ? configMgr_->GetProfile().role : NodeRole::TRAFFIC_NODE;
+
+    if (role == NodeRole::COORDINATOR || nodeId == "RPI_COORD" || nodeId == "COORD" || nodeId == "COORDINATOR") {
+        res.passed = true;
+        res.diagnosticMessage = "Coordinator validated: Zero LEDs / signal drivers expected";
+    } else if (relayDriver_) {
         bool preemptionOk = relayDriver_->SetEmergencyPreemption(TrafficApproach::ROAD_A);
-        bool interlockActive = !relayDriver_->IsConflictInterlockTripped();
-        relayDriver_->SetAllRed();
+        bool isPreemptActive = relayDriver_->IsEmergencyPreemptionActive();
+        bool normalOk = relayDriver_->SetNormalPhase(TrafficApproach::ROAD_A);
+        bool allOffOk = relayDriver_->SetAllRed();
 
-        res.passed = allRedOk && normalPhaseOk && preemptionOk && interlockActive;
-        res.diagnosticMessage = res.passed ? "Relay modes operational; conflicting green interlock verified"
-                                           : "Relay driver mode transition failed";
+        res.passed = preemptionOk && isPreemptActive && normalOk && allOffOk;
+        res.diagnosticMessage = res.passed ? "Prototype LED driver modes operational (Emergency Path Blue ON / Normal OFF)"
+                                           : "Prototype LED driver mode transition failed";
     } else {
         res.passed = false;
-        res.diagnosticMessage = "Null relay driver";
+        res.diagnosticMessage = "Null prototype LED driver";
     }
 
     res.latencyUs = (common::TimeUtils::GetMonotonicTimeMs() * 1000) - startUs;

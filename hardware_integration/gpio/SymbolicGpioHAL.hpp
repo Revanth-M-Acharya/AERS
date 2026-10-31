@@ -21,9 +21,13 @@ namespace aegis::hardware_integration {
  * @brief Standard symbolic signal identifiers across SMART AEGIS roadside hardware.
  */
 struct StandardSignals {
-    static constexpr const char* ROAD_A_RED = "ROAD_A_RED";
+    static constexpr const char* LED_RED = "LED_RED";           // BCM 5, Pin 29 (Intersections 1 & 2)
+    static constexpr const char* LED_BLUE = "LED_BLUE";         // BCM 6, Pin 31 (Intersections 1, 2 & 3)
+    static constexpr const char* GPIO_RED = "GPIO_RED";         // BCM 5, Pin 29
+    static constexpr const char* GPIO_BLUE = "GPIO_BLUE";       // BCM 6, Pin 31
+    static constexpr const char* ROAD_A_RED = "ROAD_A_RED";     // Compatible alias for Red LED
     static constexpr const char* ROAD_A_YELLOW = "ROAD_A_YELLOW";
-    static constexpr const char* ROAD_A_GREEN = "ROAD_A_GREEN";
+    static constexpr const char* ROAD_A_GREEN = "ROAD_A_GREEN"; // Compatible alias for Blue LED (Corridor active)
     static constexpr const char* ROAD_B_RED = "ROAD_B_RED";
     static constexpr const char* ROAD_B_YELLOW = "ROAD_B_YELLOW";
     static constexpr const char* ROAD_B_GREEN = "ROAD_B_GREEN";

@@ -1,0 +1,66 @@
+{
+  "system": {
+    "name": "SMART_AEGIS",
+    "version": "2.5.0",
+    "reconnect_interval_ms": 2000,
+    "ping_interval_ms": 5000,
+    "command_timeout_ms": 1000,
+    "max_retries": 3,
+    "coordinator": {
+      "id": "COORDINATOR",
+      "ip": "10.204.179.4",
+      "has_leds": false,
+      "description": "Central Coordinator Node (Pure TCP Client & Intelligence Engine)"
+    }
+  },
+  "intersections": [
+    {
+      "id": 1,
+      "name": "INT_1",
+      "ip": "10.204.179.245",
+      "port": 5001,
+      "gpio": {
+        "red_pin": 5,
+        "blue_pin": 6,
+        "has_red": true,
+        "has_blue": true,
+        "physical_red_pin": 29,
+        "physical_blue_pin": 31,
+        "ground_pin": 30
+      },
+      "description": "Intersection 1 - Northern Gateway Arterial"
+    },
+    {
+      "id": 2,
+      "name": "INT_2",
+      "ip": "10.204.179.130",
+      "port": 5002,
+      "gpio": {
+        "red_pin": 5,
+        "blue_pin": 6,
+        "has_red": true,
+        "has_blue": true,
+        "physical_red_pin": 29,
+        "physical_blue_pin": 31,
+        "ground_pin": 30
+      },
+      "description": "Intersection 2 - Priority Scheduling Hub"
+    },
+    {
+      "id": 3,
+      "name": "INT_3",
+      "ip": "10.204.179.144",
+      "port": 5003,
+      "gpio": {
+        "red_pin": -1,
+        "blue_pin": 6,
+        "has_red": false,
+        "has_blue": true,
+        "physical_red_pin": -1,
+        "physical_blue_pin": 31,
+        "ground_pin": 30
+      },
+      "description": "Intersection 3 - Hospital Gate (Hardware Shortage: Blue LED Only)"
+    }
+  ]
+}

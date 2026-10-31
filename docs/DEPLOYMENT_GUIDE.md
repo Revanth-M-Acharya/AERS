@@ -1,291 +1,231 @@
-# SMART AEGIS: Phase 5A Raspberry Pi Deployment Guide
+# SMART AEGIS — Cluster Deployment Guide
 
-## 1. Hardware Architecture Overview
+================================================================================
+SMART AEGIS: Automated Emergency Routing & Smart Traffic Corridor Preemption System
+Production Hardware Deployment Handbook — Target: 4-Node Raspberry Pi Cluster
+================================================================================
 
-The SMART AEGIS (Ambulance Emergency Response System) distributed system is deployed across **four physical nodes**:
+## 1. Hardware Architecture & Cluster Specification
+
+The SMART AEGIS physical demonstration environment operates on a dedicated **4-node Raspberry Pi 4 cluster** running QNX Neutrino RTOS 8.0 (or POSIX Linux/macOS simulation):
 
 ```
                               ┌─────────────────────────────────────────┐
                               │  Raspberry Pi 1: Central Coordinator    │
-                              │  OS: QNX Neutrino RTOS (or POSIX Host)  │
-                              │  Role: Coordinator Manager / Server     │
-                              │  Default IP: 192.168.1.101 : 9000       │
+                              │  OS: QNX SDP 8.0 (Pure Software)        │
+                              │  Role: TCP Client Engine & Scheduler    │
+                              │  Static IP: 10.204.179.4                │
+                              │  Hardware: ZERO GPIO ACCESS (No LEDs)   │
                               └────────────────────┬────────────────────┘
                                                    │
-                          Wi-Fi Network / TCP Sockets (Port 9000)
+                           TCP Sockets / ISO 8601 CRC16-CCITT Control Mesh
                                                    │
-                ┌──────────────────────────────────┼──────────────────────────────────┐
-                │                                  │                                  │
-  ┌─────────────┴──────────────┐     ┌─────────────┴──────────────┐     ┌─────────────┴──────────────┐
-  │      Raspberry Pi 2        │     │      Raspberry Pi 3        │     │      Raspberry Pi 4        │
-  │   Intersection Node A      │     │   Intersection Node B      │     │   Intersection Node C      │
-  │         (INT_A)            │     │         (INT_B)            │     │         (INT_C)            │
-  │     192.168.1.102:9001     │     │     192.168.1.103:9002     │     │     192.168.1.104:9003     │
-  └────────────────────────────┘     └────────────────────────────┘     └────────────────────────────┘
+                 ┌─────────────────────────────────┼─────────────────────────────────┐
+                 │                                 │                                 │
+   ┌─────────────┴──────────────┐    ┌─────────────┴──────────────┐    ┌─────────────┴──────────────┐
+   │      Raspberry Pi 2        │    │      Raspberry Pi 3        │    │      Raspberry Pi 4        │
+   │      Intersection 1        │    │      Intersection 2        │    │      Intersection 3        │
+   │  IP: 10.204.179.245:5001   │    │  IP: 10.204.179.130:5002   │    │  IP: 10.204.179.144:5003   │
+   │  Role: TCP Server Daemon   │    │  Role: TCP Server Daemon   │    │  Role: TCP Server Daemon   │
+   │  LEDs:                     │    │  LEDs:                     │    │  LEDs:                     │
+   │  • Red:  BCM 5  (Pin 29)   │    │  • Red:  BCM 5  (Pin 29)   │    │  • Red:  NONE (HW Shortage)│
+   │  • Blue: BCM 6  (Pin 31)   │    │  • Blue: BCM 6  (Pin 31)   │    │  • Blue: BCM 6  (Pin 31)   │
+   │  Resistors: 330Ω Series    │    │  Resistors: 330Ω Series    │    │  Resistors: 330Ω Series    │
+   └────────────────────────────┘    └────────────────────────────┘    └────────────────────────────┘
 ```
 
-| Physical Device | Role | Node ID | Default IP | Port | Target OS |
+| Physical Device | Role | Node ID | Static IP | Port | Hardware Setup |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Raspberry Pi 1** | Central Coordinator | `COORDINATOR` | `192.168.1.101` | `9000` | QNX Neutrino RTOS |
-| **Raspberry Pi 2** | Roadside Intersection A | `INT_A` | `192.168.1.102` | `9001` | Linux (Raspberry Pi OS) |
-| **Raspberry Pi 3** | Roadside Intersection B | `INT_B` | `192.168.1.103` | `9002` | Linux (Raspberry Pi OS) |
-| **Raspberry Pi 4** | Roadside Intersection C | `INT_C` | `192.168.1.104` | `9003` | Linux (Raspberry Pi OS) |
+| **Raspberry Pi 1** | Central Coordinator | `COORDINATOR` | `10.204.179.4` | N/A (Client) | Pure software; No LEDs connected |
+| **Raspberry Pi 2** | Roadside Intersection 1 | `INT_1` | `10.204.179.245` | `5001` | Red (BCM 5 / Pin 29), Blue (BCM 6 / Pin 31) |
+| **Raspberry Pi 3** | Roadside Intersection 2 | `INT_2` | `10.204.179.130` | `5002` | Red (BCM 5 / Pin 29), Blue (BCM 6 / Pin 31) |
+| **Raspberry Pi 4** | Roadside Intersection 3 | `INT_3` | `10.204.179.144` | `5003` | Blue (BCM 6 / Pin 31 only; Red shortage handled) |
 
 ---
 
-## 2. Directory & Folder Structure
+## 2. Directory & Binary Structure
 
 ```
 AERS/
+├── CMakeLists.txt                         # Modern CMake (>= 3.20) build configuration
 ├── config/
-│   └── deployment/
-│       ├── rpi1_coordinator.json       # Raspberry Pi 1 Coordinator profile
-│       ├── rpi2_intersection_a.json    # Raspberry Pi 2 Node A profile
-│       ├── rpi3_intersection_b.json    # Raspberry Pi 3 Node B profile
-│       └── rpi4_intersection_c.json    # Raspberry Pi 4 Node C profile
-│
+│   └── intersections.json                 # Master cluster network & pin configuration
 ├── build/
 │   ├── bin/
-│   │   ├── aegis_coordinator           # Central Coordinator executable daemon
-│   │   ├── aegis_intersection_node     # Edge Intersection Node executable daemon
-│   │   ├── test_rpi_deployment         # Deployment integration test suite
-│   │   └── test_system_integration     # Multi-node system integration test suite
+│   │   ├── coordinator                    # Central Coordinator daemon (Pi 1)
+│   │   ├── intersection                   # Roadside Intersection daemon (Pi 2, 3, 4)
+│   │   ├── simulation                     # In-process simulation dashboard runner
+│   │   ├── validator                      # 9-vector pre-flight system validator
+│   │   ├── gui                            # Qt6 graphical desktop application
+│   │   └── test_smart_aegis_system        # Comprehensive unit & integration test suite
 │   └── lib/
-│       └── libaegis.a                  # Core static library archive
-│
-├── scripts/
-│   ├── build.sh                        # Build automation runner (CMake/Make)
-│   ├── start_all_nodes.sh              # Local multi-node deployment orchestrator
-│   ├── start_rpi1_coordinator.sh       # RPi 1 startup script
-│   ├── start_rpi2_int_a.sh             # RPi 2 startup script
-│   ├── start_rpi3_int_b.sh             # RPi 3 startup script
-│   └── start_rpi4_int_c.sh             # RPi 4 startup script
-│
-├── src/
-│   ├── apps/
-│   │   ├── coordinator_main.cpp        # Entrypoint for aegis_coordinator
-│   │   └── intersection_main.cpp       # Entrypoint for aegis_intersection_node
-│   ├── config/
-│   │   ├── NodeConfig.h                # Deployment configuration data model
-│   │   └── NodeConfig.cpp              # Robust JSON configuration loader
-│   ├── coordinator/                    # Central decision & corridor engine
-│   ├── intersection/                   # SignalController, HeartbeatManager, IntersectionNode
-│   ├── system/                         # SystemManager system integration layer
-│   └── communication/                  # SocketServer, SocketClient, Message protocol
-│
-└── tests/
-    └── integration/
-        ├── test_rpi_deployment.cpp     # Deployment integration test suite
-        └── test_system_integration.cpp # Full system integration tests
+│       └── libsmart_aegis_core.a          # Core static engine archive
+└── scripts/
+    ├── start_coordinator.sh               # Launch Coordinator on Pi 1
+    ├── start_intersection1.sh             # Launch Node 1 on Pi 2 (port 5001)
+    ├── start_intersection2.sh             # Launch Node 2 on Pi 3 (port 5002)
+    ├── start_intersection3.sh             # Launch Node 3 on Pi 4 (port 5003)
+    ├── stop_all.sh                        # Stop all daemons
+    ├── restart_all.sh                     # Cluster restart orchestrator
+    ├── health_check.sh                    # Diagnostic network & port ping utility
+    └── deploy.sh                          # Automated SSH distribution script
 ```
 
 ---
 
-## 3. Binary Locations
+## 3. Configuration Management
 
-Following compilation, all binaries are generated in the `build/bin/` directory:
+All cluster parameters are maintained centrally in `config/intersections.json`:
 
-| Binary Name | Relative Path | Purpose |
-| :--- | :--- | :--- |
-| **`aegis_coordinator`** | `build/bin/aegis_coordinator` | Central Coordinator daemon (Raspberry Pi 1) |
-| **`aegis_intersection_node`** | `build/bin/aegis_intersection_node` | Roadside Intersection Node daemon (Raspberry Pis 2, 3, 4) |
-| **`test_rpi_deployment`** | `build/bin/test_rpi_deployment` | Phase 5A deployment test suite |
-| **`test_system_integration`** | `build/bin/test_system_integration` | System integration verification test suite |
-
----
-
-## 4. Configuration Editing
-
-Each Raspberry Pi reads its configuration dynamically at launch from a dedicated JSON file using [`NodeConfigLoader`](file:///Users/revanthmacharya/Education/NHCE/Hackathons/QNX%20hackathon/AERS/src/config/NodeConfig.h). No values are hardcoded in the C++ binaries.
-
-### Raspberry Pi 1 Configuration: `config/deployment/rpi1_coordinator.json`
 ```json
 {
-  "nodeId": "COORDINATOR",
-  "role": "Coordinator",
-  "ipAddress": "192.168.1.101",
-  "port": 9000,
-  "coordinatorIp": "192.168.1.101",
-  "coordinatorPort": 9000,
-  "heartbeatIntervalMs": 1000,
-  "connectTimeoutMs": 3000,
-  "ackTimeoutMs": 3000,
-  "autoReconnect": true
+  "intersections": [
+    {
+      "id": 1,
+      "name": "MG Road - Brigade Junction",
+      "ip": "10.204.179.245",
+      "port": 5001,
+      "gpio": {
+        "red_led_bcm": 5,
+        "blue_led_bcm": 6
+      }
+    },
+    {
+      "id": 2,
+      "name": "Residency Road Cross",
+      "ip": "10.204.179.130",
+      "port": 5002,
+      "gpio": {
+        "red_led_bcm": 5,
+        "blue_led_bcm": 6
+      }
+    },
+    {
+      "id": 3,
+      "name": "Richmond Circle",
+      "ip": "10.204.179.144",
+      "port": 5003,
+      "gpio": {
+        "red_led_bcm": -1,
+        "blue_led_bcm": 6
+      }
+    }
+  ],
+  "system": {
+    "reconnect_interval_ms": 2000,
+    "ping_interval_ms": 5000,
+    "command_timeout_ms": 1000,
+    "max_command_retries": 3
+  }
 }
 ```
 
-### Raspberry Pi 2 Configuration: `config/deployment/rpi2_intersection_a.json`
-```json
-{
-  "nodeId": "INT_A",
-  "role": "Intersection",
-  "ipAddress": "192.168.1.102",
-  "port": 9001,
-  "coordinatorIp": "192.168.1.101",
-  "coordinatorPort": 9000,
-  "heartbeatIntervalMs": 1000,
-  "connectTimeoutMs": 3000,
-  "ackTimeoutMs": 3000,
-  "autoReconnect": true
-}
-```
-
-### Raspberry Pi 3 Configuration: `config/deployment/rpi3_intersection_b.json`
-```json
-{
-  "nodeId": "INT_B",
-  "role": "Intersection",
-  "ipAddress": "192.168.1.103",
-  "port": 9002,
-  "coordinatorIp": "192.168.1.101",
-  "coordinatorPort": 9000,
-  "heartbeatIntervalMs": 1000,
-  "connectTimeoutMs": 3000,
-  "ackTimeoutMs": 3000,
-  "autoReconnect": true
-}
-```
-
-### Raspberry Pi 4 Configuration: `config/deployment/rpi4_intersection_c.json`
-```json
-{
-  "nodeId": "INT_C",
-  "role": "Intersection",
-  "ipAddress": "192.168.1.104",
-  "port": 9003,
-  "coordinatorIp": "192.168.1.101",
-  "coordinatorPort": 9000,
-  "heartbeatIntervalMs": 1000,
-  "connectTimeoutMs": 3000,
-  "ackTimeoutMs": 3000,
-  "autoReconnect": true
-}
-```
-
-> **Editing Instructions**:
-> To change the Wi-Fi subnet or port numbers, simply update `coordinatorIp` on all edge nodes to point to the actual IP assigned to Raspberry Pi 1 by the local Wi-Fi router.
-
 ---
 
-## 5. Startup Sequence
+## 4. Startup Sequence
 
-The system enforces an **automated, ordered startup sequence**:
+Because the Coordinator operates as a **TCP Client** and the Intersections operate as **TCP Servers**, the startup sequence is:
 
 ```
-Step 1: Start Central Coordinator (Raspberry Pi 1)
-   └── Binds TCP socket server on port 9000
-   └── Initializes EventQueue and IntersectionRegistry
-   └── Listens for incoming connections
+Step 1: Launch Intersection Nodes (Pis 2, 3, 4)
+   ├── Bind TCP server sockets on 5001, 5002, and 5003
+   ├── Initialize BCM2711 direct GPIO memory registers (0xFE200000)
+   ├── Turn off all LEDs into safe idle state
+   └── Enter listen loop waiting for Coordinator connection
 
-Step 2: Start Intersection Node A (Raspberry Pi 2)
-   └── Connects over Wi-Fi TCP to Coordinator
-   └── Sends REGISTER packet
-   └── Receives registration ACK
-   └── HeartbeatManager starts periodic beacons (1 Hz)
-
-Step 3: Start Intersection Node B (Raspberry Pi 3)
-   └── Connects over Wi-Fi TCP to Coordinator
-   └── Sends REGISTER packet
-   └── Receives registration ACK
-   └── HeartbeatManager starts periodic beacons (1 Hz)
-
-Step 4: Start Intersection Node C (Raspberry Pi 4)
-   └── Connects over Wi-Fi TCP to Coordinator
-   └── Sends REGISTER packet
-   └── Receives registration ACK
-   └── HeartbeatManager starts periodic beacons (1 Hz)
-
-Step 5: Coordinator Convergence
-   └── All 3 nodes confirmed online
-   └── Green Corridor preemption ready
+Step 2: Launch Central Coordinator (Pi 1)
+   ├── Read config/intersections.json
+   ├── Connect outgoing TCP sockets to 10.204.179.245:5001, 10.204.179.130:5002, 10.204.179.144:5003
+   ├── Receive INTERSECTION_READY greeting frames
+   ├── Establish 5-second PING heartbeat interval
+   └── Ready to dispatch Green Corridor preemption commands
 ```
 
 ---
 
-## 6. Deployment Steps
+## 5. Deployment Procedures
 
-### Step 1: Compile the Project
+### Automated Cluster Deployment (`scripts/deploy.sh`)
 
-On your development host or target build machine:
+Ensure SSH public key authentication is configured for target user `qnxuser` or `pi`:
+
 ```bash
-make all
-# Or alternatively using the CMake build script:
-./scripts/build.sh
+# Set deployment target user if not default
+export RPI_USER=qnxuser
+
+# Deploy binaries and configs to all 4 nodes in parallel
+./scripts/deploy.sh
 ```
 
-Run test suites to verify system integrity:
+### Manual Target Deployment
+
+**1. Raspberry Pi 1 (Coordinator - `10.204.179.4`):**
 ```bash
-make test
-# Or:
-./scripts/build.sh test
+scp build/bin/coordinator config/intersections.json scripts/start_coordinator.sh scripts/stop_all.sh qnxuser@10.204.179.4:~/aegis/
 ```
 
-### Step 2: Transfer Binaries and Configs to Raspberry Pis
-
-From your build workstation, copy the required files to each Raspberry Pi:
-
+**2. Raspberry Pi 2 (Intersection 1 - `10.204.179.245`):**
 ```bash
-# 1. Raspberry Pi 1 (Coordinator)
-ssh pi@192.168.1.101 "mkdir -p ~/aegis/bin ~/aegis/config/deployment ~/aegis/scripts"
-scp build/bin/aegis_coordinator pi@192.168.1.101:~/aegis/bin/
-scp config/deployment/rpi1_coordinator.json pi@192.168.1.101:~/aegis/config/deployment/
-scp scripts/start_rpi1_coordinator.sh pi@192.168.1.101:~/aegis/scripts/
-
-# 2. Raspberry Pi 2 (Intersection Node A)
-ssh pi@192.168.1.102 "mkdir -p ~/aegis/bin ~/aegis/config/deployment ~/aegis/scripts"
-scp build/bin/aegis_intersection_node pi@192.168.1.102:~/aegis/bin/
-scp config/deployment/rpi2_intersection_a.json pi@192.168.1.102:~/aegis/config/deployment/
-scp scripts/start_rpi2_int_a.sh pi@192.168.1.102:~/aegis/scripts/
-
-# 3. Raspberry Pi 3 (Intersection Node B)
-ssh pi@192.168.1.103 "mkdir -p ~/aegis/bin ~/aegis/config/deployment ~/aegis/scripts"
-scp build/bin/aegis_intersection_node pi@192.168.1.103:~/aegis/bin/
-scp config/deployment/rpi3_intersection_b.json pi@192.168.1.103:~/aegis/config/deployment/
-scp scripts/start_rpi3_int_b.sh pi@192.168.1.103:~/aegis/scripts/
-
-# 4. Raspberry Pi 4 (Intersection Node C)
-ssh pi@192.168.1.104 "mkdir -p ~/aegis/bin ~/aegis/config/deployment ~/aegis/scripts"
-scp build/bin/aegis_intersection_node pi@192.168.1.104:~/aegis/bin/
-scp config/deployment/rpi4_intersection_c.json pi@192.168.1.104:~/aegis/config/deployment/
-scp scripts/start_rpi4_int_c.sh pi@192.168.1.104:~/aegis/scripts/
+scp build/bin/intersection config/intersections.json scripts/start_intersection1.sh scripts/stop_all.sh qnxuser@10.204.179.245:~/aegis/
 ```
 
-### Step 3: Launch Nodes
-
-**Terminal 1 (Raspberry Pi 1 - Coordinator):**
+**3. Raspberry Pi 3 (Intersection 2 - `10.204.179.130`):**
 ```bash
-./scripts/start_rpi1_coordinator.sh
-# Expected output:
-# [READY] Central Coordinator listening for Intersection Nodes...
+scp build/bin/intersection config/intersections.json scripts/start_intersection2.sh scripts/stop_all.sh qnxuser@10.204.179.130:~/aegis/
 ```
 
-**Terminal 2 (Raspberry Pi 2 - INT_A):**
+**4. Raspberry Pi 4 (Intersection 3 - `10.204.179.144`):**
 ```bash
-./scripts/start_rpi2_int_a.sh
-# Expected output:
-# [READY] Registered with Coordinator! Heartbeat beaconing active.
-```
-
-**Terminal 3 (Raspberry Pi 3 - INT_B):**
-```bash
-./scripts/start_rpi3_int_b.sh
-# Expected output:
-# [READY] Registered with Coordinator! Heartbeat beaconing active.
-```
-
-**Terminal 4 (Raspberry Pi 4 - INT_C):**
-```bash
-./scripts/start_rpi4_int_c.sh
-# Expected output:
-# [READY] Registered with Coordinator! Heartbeat beaconing active.
+scp build/bin/intersection config/intersections.json scripts/start_intersection3.sh scripts/stop_all.sh qnxuser@10.204.179.144:~/aegis/
 ```
 
 ---
 
-## 7. Local Multi-Node Simulation / Orchestration
+## 6. Execution Commands
 
-For local workstation testing (simulating all 4 Raspberry Pis on loopback):
+### On Edge Nodes (Intersections)
+
+**Pi 2 (Node 1):**
 ```bash
-./scripts/start_all_nodes.sh
+./scripts/start_intersection1.sh
+# Or direct command:
+./build/bin/intersection --id 1 --port 5001 --hardware
 ```
-This script automatically executes the ordered startup sequence, registers Nodes A, B, and C with the Coordinator, and terminates all 4 processes cleanly upon receiving `Ctrl+C`.
+
+**Pi 3 (Node 2):**
+```bash
+./scripts/start_intersection2.sh
+# Or direct command:
+./build/bin/intersection --id 2 --port 5002 --hardware
+```
+
+**Pi 4 (Node 3):**
+```bash
+./scripts/start_intersection3.sh
+# Or direct command:
+./build/bin/intersection --id 3 --port 5003 --hardware
+```
+
+### On Master Node (Coordinator)
+
+**Pi 1:**
+```bash
+./scripts/start_coordinator.sh
+# Or direct command:
+./build/bin/coordinator --hardware
+```
+
+---
+
+## 7. Diagnostics & Cluster Health
+
+To verify network reachability, socket accessibility, and port status:
+
+```bash
+./scripts/health_check.sh
+```
+
+To run deep system validation:
+```bash
+./build/bin/validator
+```
