@@ -1,8 +1,10 @@
 /**
  * @file ProductionRelayDriver.hpp
- * @brief Production-grade Relay Driver for 4-Channel Traffic Signal Actuation on Raspberry Pi 4.
+ * @brief Production-grade Signal Driver for Traffic Signal Actuation on Raspberry Pi 4.
+ * Directly controls 3-Light Traffic Signal LED Module (GPIO_RED, GPIO_YELLOW, GPIO_GREEN).
  * Supports Normal Operation, All-Red, Flashing Yellow, Emergency Preemption, and Self-Test.
- * Guarantees zero conflicting green indications via hardware/software interlocks.
+ * Guarantees zero conflicting green indications via mutual exclusion interlocks.
+ * Note: Preserves ProductionRelayDriver interface naming for architectural continuity.
  * @copyright (c) 2026 SMART AEGIS Project. All rights reserved.
  */
 
@@ -58,12 +60,12 @@ public:
     ProductionRelayDriver& operator=(const ProductionRelayDriver&) = delete;
 
     /**
-     * @brief Initialize relay driver and register standard signals if not already present.
+     * @brief Initialize signal driver and register standard signals if not already present.
      */
     bool Initialize();
 
     /**
-     * @brief Safe shutdown: de-assert all relay channels.
+     * @brief Safe shutdown: de-assert all signal lines.
      */
     void Shutdown();
 

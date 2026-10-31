@@ -56,7 +56,7 @@ public:
     PoliceReplanningCoordinator& operator=(const PoliceReplanningCoordinator&) = delete;
 
     /**
-     * @brief Register relay driver for an intersection node to manipulate signals during replanning.
+     * @brief Register signal driver for an intersection node to manipulate signals during replanning.
      */
     void RegisterNodeRelayDriver(const std::string& nodeId, std::shared_ptr<ProductionRelayDriver> relayDriver);
 

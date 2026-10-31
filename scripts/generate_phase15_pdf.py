@@ -220,7 +220,7 @@ def build_pdf(md_path, pdf_path):
             continue
 
         # 3. Document Subtitle
-        if line.startswith("## Physical Hardware Assembly, Approved BCM GPIO Mapping"):
+        if line.startswith("## "):
             story.append(Paragraph(clean_markdown_inline(line[3:].strip()), subtitle_style))
             i += 1
             continue

@@ -1,7 +1,7 @@
 /**
  * @file CommissioningManager.hpp
  * @brief Automated Commissioning & Hardware Self-Test Engine for SMART AEGIS Raspberry Pi Nodes.
- * Executes on node boot to certify relay, GPIO, IR sensor, and fail-safe safety interlocks.
+ * Executes on node boot to certify traffic signal module, GPIO, IR sensor, and fail-safe safety interlocks.
  * @copyright (c) 2026 SMART AEGIS Project. All rights reserved.
  */
 

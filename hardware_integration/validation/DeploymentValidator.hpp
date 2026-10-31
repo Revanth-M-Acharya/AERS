@@ -1,7 +1,7 @@
 /**
  * @file DeploymentValidator.hpp
  * @brief Comprehensive Deployment Validation Engine for SMART AEGIS Cluster.
- * Validates Connectivity, Configuration, GPIO, Relay, IR Sensor, EventBus, and Time Sync.
+ * Validates Connectivity, Configuration, GPIO, Traffic Signal Driver, IR Sensor, EventBus, and Time Sync.
  * @copyright (c) 2026 SMART AEGIS Project. All rights reserved.
  */
 
